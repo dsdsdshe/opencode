@@ -26,7 +26,7 @@ jobs:
           set -euo pipefail
           mkdir -p out/linux-bin
 
-          bun run script/build.ts --single --baseline --skip-install
+          bun run ./packages/opencode/script/build.ts --single --baseline --skip-install
           GLIBC_BIN="$(
             find packages/opencode/dist -type f -path "*/opencode-linux-*/bin/opencode" |
               grep -v musl |
@@ -39,7 +39,7 @@ jobs:
           fi
           cp "$GLIBC_BIN" out/linux-bin/opencode-glibc
 
-          bun run script/build.ts --single --baseline --abi=musl --skip-install
+          bun run ./packages/opencode/script/build.ts --single --baseline --abi=musl --skip-install
           MUSL_BIN="$(
             find packages/opencode/dist -type f -path "*/opencode-linux-*-musl/bin/opencode" |
               head -n 1 ||
