@@ -9,6 +9,7 @@ This package is for a simple demo deployment:
 - Safe mode and outbound host allowlist enabled
 - Proxy bypass for `10.90.79.111` is configured automatically (no manual `no_proxy` required)
 - Proxy usage is disabled by default (`OPENCODE_DISABLE_PROXY=1`) for direct-only intranet access
+- Windows installer does not write persistent environment variables; policy is applied only in the app process
 
 ## Linux (CLI)
 
