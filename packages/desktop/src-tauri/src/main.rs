@@ -4,7 +4,7 @@
 // borrowed from https://github.com/skyline69/balatro-mod-manager
 #[cfg(target_os = "linux")]
 fn configure_display_backend() -> Option<String> {
-    use opencode_lib::linux_windowing::{Backend, SessionEnv, select_backend};
+    use opencode_lib::linux_windowing::{select_backend, Backend, SessionEnv};
     use std::env;
 
     let set_env_if_absent = |key: &str, value: &str| {
@@ -42,7 +42,49 @@ fn configure_display_backend() -> Option<String> {
 fn main() {
     // Ensure loopback connections are never sent through proxy settings.
     // Some VPNs/proxies set HTTP_PROXY/HTTPS_PROXY/ALL_PROXY without excluding localhost.
-    const LOOPBACK: [&str; 3] = ["127.0.0.1", "localhost", "::1"];
+    let mut bypass = vec![
+        "127.0.0.1".to_string(),
+        "localhost".to_string(),
+        "::1".to_string(),
+    ];
+
+    bypass.extend(
+        std::env::var("OPENCODE_ALLOWED_HOSTS")
+            .unwrap_or_default()
+            .split(',')
+            .flat_map(|item| {
+                let input = item
+                    .trim()
+                    .trim_start_matches("http://")
+                    .trim_start_matches("https://");
+                if input.is_empty() {
+                    return Vec::<String>::new();
+                }
+
+                if input.starts_with('[') {
+                    if let Some(end) = input.find(']') {
+                        let host = input[1..end].trim();
+                        if host.is_empty() {
+                            return vec![input.to_string()];
+                        }
+                        return vec![input.to_string(), host.to_string()];
+                    }
+                    return vec![input.to_string()];
+                }
+
+                if input.matches(':').count() == 1 {
+                    if let Some((host, _)) = input.split_once(':') {
+                        let host = host.trim();
+                        if host.is_empty() {
+                            return vec![input.to_string()];
+                        }
+                        return vec![input.to_string(), host.to_string()];
+                    }
+                }
+
+                vec![input.to_string()]
+            }),
+    );
 
     let upsert = |key: &str| {
         let mut items = std::env::var(key)
@@ -53,11 +95,11 @@ fn main() {
             .map(|v| v.to_string())
             .collect::<Vec<_>>();
 
-        for host in LOOPBACK {
+        for host in &bypass {
             if items.iter().any(|v| v.eq_ignore_ascii_case(host)) {
                 continue;
             }
-            items.push(host.to_string());
+            items.push(host.clone());
         }
 
         // Safety: called during startup before any threads are spawned.

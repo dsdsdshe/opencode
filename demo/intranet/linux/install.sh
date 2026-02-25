@@ -67,6 +67,8 @@ export OPENCODE_DISABLE_REMOTE_INSTRUCTIONS=1
 export OPENCODE_DISABLE_REMOTE_MCP=1
 export OPENCODE_DISABLE_AUTOUPDATE=1
 export OPENCODE_DISABLE_DEFAULT_PLUGINS=1
+export NO_PROXY="${NO_PROXY:+$NO_PROXY,}127.0.0.1,localhost,::1,10.90.79.111,10.90.79.111:8000"
+export no_proxy="${no_proxy:+$no_proxy,}127.0.0.1,localhost,::1,10.90.79.111,10.90.79.111:8000"
 
 # Isolate OpenCode runtime state from user/global config to prevent accidental policy bypasses.
 export XDG_CONFIG_HOME="$RUNTIME_BASE/xdg-config"

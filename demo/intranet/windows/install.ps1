@@ -56,6 +56,28 @@ public static class NativeMethods {
   )
 }
 
+function Merge-NoProxy {
+  param(
+    [string]$Current,
+    [string[]]$Entries
+  )
+
+  $seen = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+  $items = @()
+
+  foreach ($value in @($Current -split ",") + $Entries) {
+    $entry = "$value".Trim()
+    if (-not $entry) {
+      continue
+    }
+    if ($seen.Add($entry)) {
+      $items += $entry
+    }
+  }
+
+  return ($items -join ",")
+}
+
 $scriptRoot = Split-Path -Parent $PSCommandPath
 $cfgSource = Join-Path $scriptRoot "opencode.json"
 
@@ -89,6 +111,18 @@ New-Item -ItemType Directory -Force -Path $xdgCache | Out-Null
 New-Item -ItemType Directory -Force -Path $xdgState | Out-Null
 New-Item -ItemType Directory -Force -Path $sandboxHome | Out-Null
 
+$proxyBypass = @(
+  "127.0.0.1",
+  "localhost",
+  "::1",
+  "10.90.79.111",
+  "10.90.79.111:8000"
+)
+
+$mergedNoProxy = Merge-NoProxy `
+  -Current ([Environment]::GetEnvironmentVariable("NO_PROXY", "User")) `
+  -Entries $proxyBypass
+
 $vars = @{
   OPENCODE_CONFIG                      = $cfgPath
   OPENCODE_DISABLE_PROJECT_CONFIG      = "1"
@@ -105,6 +139,7 @@ $vars = @{
   XDG_CACHE_HOME                       = $xdgCache
   XDG_STATE_HOME                       = $xdgState
   OPENCODE_TEST_HOME                   = $sandboxHome
+  NO_PROXY                             = $mergedNoProxy
 }
 
 foreach ($item in $vars.GetEnumerator()) {

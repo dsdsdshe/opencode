@@ -7,6 +7,7 @@ This package is for a simple demo deployment:
 - Fixed model endpoint: `http://10.90.79.111:8000/v1`
 - Fixed model: `MiniMaxAI/MiniMax-M2.5`
 - Safe mode and outbound host allowlist enabled
+- Proxy bypass for `10.90.79.111` is configured automatically (no manual `no_proxy` required)
 
 ## Linux (CLI)
 
