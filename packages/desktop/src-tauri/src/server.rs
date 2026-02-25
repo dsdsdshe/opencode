@@ -8,7 +8,7 @@ use tokio::task::JoinHandle;
 use crate::{
     cli,
     cli::CommandChild,
-    constants::{DEFAULT_SERVER_URL_KEY, SETTINGS_STORE, WSL_ENABLED_KEY},
+    constants::{DEFAULT_SERVER_URL_KEY, SAFE_MODE, SETTINGS_STORE, WSL_ENABLED_KEY},
 };
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, specta::Type, Debug, Default)]
@@ -55,18 +55,22 @@ pub async fn set_default_server_url(app: AppHandle, url: Option<String>) -> Resu
 
 #[tauri::command]
 #[specta::specta]
-pub fn get_wsl_config(_app: AppHandle) -> Result<WslConfig, String> {
-    // let store = app
-    //     .store(SETTINGS_STORE)
-    //     .map_err(|e| format!("Failed to open settings store: {}", e))?;
+pub fn get_wsl_config(app: AppHandle) -> Result<WslConfig, String> {
+    if SAFE_MODE {
+        return Ok(WslConfig { enabled: false });
+    }
 
-    // let enabled = store
-    //     .get(WSL_ENABLED_KEY)
-    //     .as_ref()
-    //     .and_then(|v| v.as_bool())
-    //     .unwrap_or(false);
+    let store = app
+        .store(SETTINGS_STORE)
+        .map_err(|e| format!("Failed to open settings store: {}", e))?;
 
-    Ok(WslConfig { enabled: false })
+    let enabled = store
+        .get(WSL_ENABLED_KEY)
+        .as_ref()
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    Ok(WslConfig { enabled })
 }
 
 #[tauri::command]
@@ -76,7 +80,13 @@ pub fn set_wsl_config(app: AppHandle, config: WslConfig) -> Result<(), String> {
         .store(SETTINGS_STORE)
         .map_err(|e| format!("Failed to open settings store: {}", e))?;
 
-    store.set(WSL_ENABLED_KEY, serde_json::Value::Bool(config.enabled));
+    if SAFE_MODE && config.enabled {
+        tracing::warn!("Ignoring request to enable WSL while safe mode is enabled");
+    }
+
+    // Safe mode hard-disables WSL integration regardless of requested value.
+    let enabled = if SAFE_MODE { false } else { config.enabled };
+    store.set(WSL_ENABLED_KEY, serde_json::Value::Bool(enabled));
 
     store
         .save()

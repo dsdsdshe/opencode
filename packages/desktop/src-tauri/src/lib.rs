@@ -396,6 +396,9 @@ fn wsl_path(path: String, mode: Option<WslPathMode>) -> Result<String, String> {
     if !cfg!(windows) {
         return Ok(path);
     }
+    if SAFE_MODE {
+        return Ok(path);
+    }
 
     let flag = match mode.unwrap_or(WslPathMode::Linux) {
         WslPathMode::Windows => "-w",

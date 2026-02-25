@@ -353,12 +353,14 @@ const createPlatform = (): Platform => {
     },
 
     getWslEnabled: async () => {
+      if (window.__OPENCODE__?.safeMode) return false
       const next = await commands.getWslConfig().catch(() => null)
       if (next) return next.enabled
       return window.__OPENCODE__!.wsl ?? false
     },
 
     setWslEnabled: async (enabled) => {
+      if (window.__OPENCODE__?.safeMode) return
       await commands.setWslConfig({ enabled })
     },
 
