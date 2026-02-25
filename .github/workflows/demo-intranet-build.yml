@@ -63,7 +63,9 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path packages/desktop/src-tauri/sidecars | Out-Null
-          $bin = Get-ChildItem "packages/opencode/dist/opencode-windows-*/bin/opencode*" | Select-Object -First 1
+          $bin = Get-ChildItem -Path "packages/opencode/dist/opencode-windows-*/bin" -File |
+            Where-Object { $_.Name -eq "opencode.exe" -or $_.Name -eq "opencode" } |
+            Select-Object -First 1
           if (-not $bin) { throw "Windows sidecar binary not found." }
           Copy-Item $bin.FullName "packages/desktop/src-tauri/sidecars/opencode-cli-x86_64-pc-windows-msvc.exe" -Force
 
@@ -81,6 +83,7 @@ jobs:
           Copy-Item $installer.FullName "out/windows/OpenCode-Setup.exe" -Force
           Copy-Item "demo/intranet/opencode.json" "out/windows/opencode.json" -Force
           Copy-Item "demo/intranet/windows/install.ps1" "out/windows/install.ps1" -Force
+          Copy-Item "demo/intranet/windows/install.cmd" "out/windows/install.cmd" -Force
           Copy-Item "demo/intranet/README.md" "out/windows/README.md" -Force
           Compress-Archive -Path "out/windows/*" -DestinationPath "out/opencode-windows-client-demo.zip" -Force
 

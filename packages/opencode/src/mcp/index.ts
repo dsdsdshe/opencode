@@ -299,6 +299,13 @@ export namespace MCP {
     }
 
     const cfg = await Config.get()
+    if (Safe.on(cfg.security)) {
+      log.info("mcp disabled in safe mode", { key })
+      return {
+        mcpClient: undefined,
+        status: { status: "disabled" as const },
+      }
+    }
 
     log.info("found", { key, type: mcp.type })
     let mcpClient: MCPClient | undefined

@@ -52,7 +52,14 @@ export namespace Plugin {
     }
 
     let plugins = config.plugin ?? []
-    if (plugins.length) await Config.waitForDependencies()
+    if (safe) {
+      if (plugins.length) {
+        log.warn("configured plugins are ignored in safe mode", { count: plugins.length })
+      }
+      plugins = []
+    } else if (plugins.length) {
+      await Config.waitForDependencies()
+    }
     if (!Flag.OPENCODE_DISABLE_DEFAULT_PLUGINS && !safe) {
       plugins = [...BUILTIN, ...plugins]
     }

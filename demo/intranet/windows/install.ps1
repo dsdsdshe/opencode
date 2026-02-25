@@ -65,12 +65,29 @@ if (-not (Test-Path $cfgSource)) {
 
 $installer = Resolve-Installer -GivenPath $InstallerPath
 Write-Host "Running installer: $installer"
-Start-Process -FilePath $installer -ArgumentList "/S" -Wait
+$process = Start-Process -FilePath $installer -ArgumentList "/S" -Wait -PassThru
+if ($process.ExitCode -ne 0) {
+  throw "Installer failed with exit code $($process.ExitCode)"
+}
 
-$cfgDir = Join-Path $env:LOCALAPPDATA "opencode-demo"
+$baseDir = Join-Path $env:LOCALAPPDATA "opencode-demo"
+$cfgDir = $baseDir
 $cfgPath = Join-Path $cfgDir "opencode.json"
 New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null
 Copy-Item -Path $cfgSource -Destination $cfgPath -Force
+
+$runtimeDir = Join-Path $baseDir "runtime"
+$xdgConfig = Join-Path $runtimeDir "xdg-config"
+$xdgData = Join-Path $runtimeDir "xdg-data"
+$xdgCache = Join-Path $runtimeDir "xdg-cache"
+$xdgState = Join-Path $runtimeDir "xdg-state"
+$sandboxHome = Join-Path $runtimeDir "home"
+
+New-Item -ItemType Directory -Force -Path $xdgConfig | Out-Null
+New-Item -ItemType Directory -Force -Path $xdgData | Out-Null
+New-Item -ItemType Directory -Force -Path $xdgCache | Out-Null
+New-Item -ItemType Directory -Force -Path $xdgState | Out-Null
+New-Item -ItemType Directory -Force -Path $sandboxHome | Out-Null
 
 $vars = @{
   OPENCODE_CONFIG                      = $cfgPath
@@ -82,6 +99,12 @@ $vars = @{
   OPENCODE_DISABLE_REMOTE_INSTRUCTIONS = "1"
   OPENCODE_DISABLE_REMOTE_MCP          = "1"
   OPENCODE_DISABLE_AUTOUPDATE          = "1"
+  OPENCODE_DISABLE_DEFAULT_PLUGINS     = "1"
+  XDG_CONFIG_HOME                      = $xdgConfig
+  XDG_DATA_HOME                        = $xdgData
+  XDG_CACHE_HOME                       = $xdgCache
+  XDG_STATE_HOME                       = $xdgState
+  OPENCODE_TEST_HOME                   = $sandboxHome
 }
 
 foreach ($item in $vars.GetEnumerator()) {
