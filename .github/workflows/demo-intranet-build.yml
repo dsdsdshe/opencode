@@ -85,7 +85,7 @@ jobs:
           Copy-Item $bin.FullName "packages/desktop/src-tauri/sidecars/opencode-cli-x86_64-pc-windows-msvc.exe" -Force
 
       - name: Build Windows desktop installer
-        run: bun run --cwd packages/desktop tauri build --config ./src-tauri/tauri.prod.conf.json
+        run: bun run --cwd packages/desktop tauri build --config ./src-tauri/tauri.intranet.conf.json
         env:
           OPENCODE_SAFE_MODE: "1"
 
