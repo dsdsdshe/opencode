@@ -66,8 +66,11 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path packages/desktop/src-tauri/sidecars | Out-Null
-          $candidates = Get-ChildItem -Path "packages/opencode/dist/opencode-windows-*/bin" -Recurse -File |
-            Where-Object { $_.Name -like "opencode*" }
+          $candidates = Get-ChildItem -Path "packages/opencode/dist" -Recurse -File |
+            Where-Object {
+              ($_.Name -eq "opencode.exe" -or $_.Name -eq "opencode") -and
+              $_.FullName -match '[\\\\/]opencode-windows-.*[\\\\/]bin[\\\\/]'
+            }
           $bin = $candidates |
             Sort-Object @{ Expression = {
               if ($_.Name -eq "opencode.exe") { 0 }
