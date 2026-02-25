@@ -2,6 +2,9 @@ name: demo-intranet-build
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feat/intranet-demo-packages
 
 jobs:
   linux-cli:
