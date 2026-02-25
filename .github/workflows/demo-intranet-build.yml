@@ -59,7 +59,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build Windows CLI sidecar binary
-        run: bun run script/build.ts --single --baseline --skip-install
+        run: bun run script/build.ts --single --skip-install
         working-directory: packages/opencode
 
       - name: Place sidecar for desktop build
