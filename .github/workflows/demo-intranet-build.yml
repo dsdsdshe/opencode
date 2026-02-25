@@ -66,10 +66,19 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path packages/desktop/src-tauri/sidecars | Out-Null
-          $bin = Get-ChildItem -Path "packages/opencode/dist/opencode-windows-*/bin" -File |
-            Where-Object { $_.Name -eq "opencode.exe" -or $_.Name -eq "opencode" } |
+          $candidates = Get-ChildItem -Path "packages/opencode/dist/opencode-windows-*/bin" -Recurse -File |
+            Where-Object { $_.Name -like "opencode*" }
+          $bin = $candidates |
+            Sort-Object @{ Expression = {
+              if ($_.Name -eq "opencode.exe") { 0 }
+              elseif ($_.Name -eq "opencode") { 1 }
+              else { 2 }
+            }}, FullName |
             Select-Object -First 1
-          if (-not $bin) { throw "Windows sidecar binary not found." }
+          if (-not $bin) {
+            Get-ChildItem -Path "packages/opencode/dist" -Recurse | Select-Object -First 200
+            throw "Windows sidecar binary not found."
+          }
           Copy-Item $bin.FullName "packages/desktop/src-tauri/sidecars/opencode-cli-x86_64-pc-windows-msvc.exe" -Force
 
       - name: Build Windows desktop installer
