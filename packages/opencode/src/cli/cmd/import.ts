@@ -9,6 +9,8 @@ import { Instance } from "../../project/instance"
 import { ShareNext } from "../../share/share-next"
 import { EOL } from "os"
 import { Filesystem } from "../../util/filesystem"
+import { Safe } from "@/util/safe"
+import { Config } from "@/config/config"
 
 /** Discriminated union returned by the ShareNext API (GET /api/share/:id/data) */
 export type ShareData =
@@ -98,6 +100,8 @@ export const ImportCommand = cmd({
         }
 
         const baseUrl = await ShareNext.url()
+        const cfg = await Config.get()
+        Safe.assert(baseUrl, cfg.security)
         const response = await fetch(`${baseUrl}/api/share/${slug}/data`)
 
         if (!response.ok) {

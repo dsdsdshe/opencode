@@ -29,6 +29,7 @@ import { PlanExitTool, PlanEnterTool } from "./plan"
 import { ApplyPatchTool } from "./apply_patch"
 import { Glob } from "../util/glob"
 import { pathToFileURL } from "url"
+import { Safe } from "@/util/safe"
 
 export namespace ToolRegistry {
   const log = Log.create({ service: "tool.registry" })
@@ -134,10 +135,16 @@ export namespace ToolRegistry {
     },
     agent?: Agent.Info,
   ) {
+    const cfg = await Config.get()
+    const safe = Safe.on(cfg.security)
     const tools = await all()
     const result = await Promise.all(
       tools
         .filter((t) => {
+          if ((t.id === "codesearch" || t.id === "websearch") && safe) {
+            return false
+          }
+
           // Enable websearch/codesearch for zen users OR via enable flag
           if (t.id === "codesearch" || t.id === "websearch") {
             return model.providerID === "opencode" || Flag.OPENCODE_ENABLE_EXA

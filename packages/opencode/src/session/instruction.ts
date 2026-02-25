@@ -8,6 +8,7 @@ import { Flag } from "@/flag/flag"
 import { Log } from "../util/log"
 import { Glob } from "../util/glob"
 import type { MessageV2 } from "./message-v2"
+import { Safe } from "@/util/safe"
 
 const log = Log.create({ service: "instruction" })
 
@@ -117,6 +118,7 @@ export namespace InstructionPrompt {
   export async function system() {
     const config = await Config.get()
     const paths = await systemPaths()
+    const disableRemote = Safe.instruction(config.security)
 
     const files = Array.from(paths).map(async (p) => {
       const content = await Filesystem.readText(p).catch(() => "")
@@ -127,16 +129,18 @@ export namespace InstructionPrompt {
     if (config.instructions) {
       for (const instruction of config.instructions) {
         if (instruction.startsWith("https://") || instruction.startsWith("http://")) {
+          if (disableRemote) continue
           urls.push(instruction)
         }
       }
     }
-    const fetches = urls.map((url) =>
-      fetch(url, { signal: AbortSignal.timeout(5000) })
+    const fetches = urls.map((url) => {
+      Safe.assert(url, config.security)
+      return fetch(url, { signal: AbortSignal.timeout(5000) })
         .then((res) => (res.ok ? res.text() : ""))
         .catch(() => "")
-        .then((x) => (x ? "Instructions from: " + url + "\n" + x : "")),
-    )
+        .then((x) => (x ? "Instructions from: " + url + "\n" + x : ""))
+    })
 
     return Promise.all([...files, ...fetches]).then((result) => result.filter(Boolean))
   }

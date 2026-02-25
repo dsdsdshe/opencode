@@ -2,6 +2,8 @@ import { UI } from "../ui"
 import { cmd } from "./cmd"
 import { Instance } from "@/project/instance"
 import { $ } from "bun"
+import { Safe } from "@/util/safe"
+import { Config } from "@/config/config"
 
 export const PrCommand = cmd({
   command: "pr <number>",
@@ -13,9 +15,18 @@ export const PrCommand = cmd({
       demandOption: true,
     }),
   async handler(args) {
+    if (Safe.on()) {
+      throw new Error("PR command is disabled in safe mode")
+    }
+
     await Instance.provide({
       directory: process.cwd(),
       async fn() {
+        const config = await Config.get()
+        if (Safe.on(config.security)) {
+          throw new Error("PR command is disabled in safe mode")
+        }
+
         const project = Instance.project
         if (project.vcs !== "git") {
           UI.error("Could not find git repository. Please run this command from a git repository.")

@@ -23,6 +23,7 @@ import { BusEvent } from "../bus/bus-event"
 import { Bus } from "@/bus"
 import { TuiEvent } from "@/cli/cmd/tui/event"
 import open from "open"
+import { Safe } from "@/util/safe"
 
 export namespace MCP {
   const log = Log.create({ service: "mcp" })
@@ -297,11 +298,22 @@ export namespace MCP {
       }
     }
 
+    const cfg = await Config.get()
+
     log.info("found", { key, type: mcp.type })
     let mcpClient: MCPClient | undefined
     let status: Status | undefined = undefined
 
     if (mcp.type === "remote") {
+      if (Safe.mcp(cfg.security)) {
+        return {
+          mcpClient: undefined,
+          status: { status: "failed" as const, error: "Remote MCP is disabled by security policy" },
+        }
+      }
+
+      Safe.assert(mcp.url, cfg.security)
+
       // OAuth is enabled by default for remote servers unless explicitly disabled with oauth: false
       const oauthDisabled = mcp.oauth === false
       const oauthConfig = typeof mcp.oauth === "object" ? mcp.oauth : undefined
@@ -721,6 +733,11 @@ export namespace MCP {
     if (mcpConfig.type !== "remote") {
       throw new Error(`MCP server ${mcpName} is not a remote server`)
     }
+
+    if (Safe.mcp(cfg.security)) {
+      throw new Error(`MCP server ${mcpName} is blocked by security policy`)
+    }
+    Safe.assert(mcpConfig.url, cfg.security)
 
     if (mcpConfig.oauth === false) {
       throw new Error(`MCP server ${mcpName} has OAuth explicitly disabled`)

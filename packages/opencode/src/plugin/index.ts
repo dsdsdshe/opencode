@@ -12,6 +12,7 @@ import { Session } from "../session"
 import { NamedError } from "@opencode-ai/util/error"
 import { CopilotAuthPlugin } from "./copilot"
 import { gitlabAuthPlugin as GitlabAuthPlugin } from "@gitlab/opencode-gitlab-auth"
+import { Safe } from "@/util/safe"
 
 export namespace Plugin {
   const log = Log.create({ service: "plugin" })
@@ -29,6 +30,7 @@ export namespace Plugin {
       fetch: async (...args) => Server.App().fetch(...args),
     })
     const config = await Config.get()
+    const safe = Safe.on(config.security)
     const hooks: Hooks[] = []
     const input: PluginInput = {
       client,
@@ -39,17 +41,19 @@ export namespace Plugin {
       $: Bun.$,
     }
 
-    for (const plugin of INTERNAL_PLUGINS) {
-      log.info("loading internal plugin", { name: plugin.name })
-      const init = await plugin(input).catch((err) => {
-        log.error("failed to load internal plugin", { name: plugin.name, error: err })
-      })
-      if (init) hooks.push(init)
+    if (!safe) {
+      for (const plugin of INTERNAL_PLUGINS) {
+        log.info("loading internal plugin", { name: plugin.name })
+        const init = await plugin(input).catch((err) => {
+          log.error("failed to load internal plugin", { name: plugin.name, error: err })
+        })
+        if (init) hooks.push(init)
+      }
     }
 
     let plugins = config.plugin ?? []
     if (plugins.length) await Config.waitForDependencies()
-    if (!Flag.OPENCODE_DISABLE_DEFAULT_PLUGINS) {
+    if (!Flag.OPENCODE_DISABLE_DEFAULT_PLUGINS && !safe) {
       plugins = [...BUILTIN, ...plugins]
     }
 
@@ -58,6 +62,10 @@ export namespace Plugin {
       if (plugin.includes("opencode-openai-codex-auth") || plugin.includes("opencode-copilot-auth")) continue
       log.info("loading plugin", { path: plugin })
       if (!plugin.startsWith("file://")) {
+        if (Safe.dynamic(config.security)) {
+          log.warn("dynamic plugin install blocked in safe mode", { plugin })
+          continue
+        }
         const lastAtIndex = plugin.lastIndexOf("@")
         const pkg = lastAtIndex > 0 ? plugin.substring(0, lastAtIndex) : plugin
         const version = lastAtIndex > 0 ? plugin.substring(lastAtIndex + 1) : "latest"

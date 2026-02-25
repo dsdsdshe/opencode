@@ -8,6 +8,7 @@ import { readableStreamToText } from "bun"
 import { Lock } from "../util/lock"
 import { PackageRegistry } from "./registry"
 import { proxied } from "@/util/proxied"
+import { Flag } from "@/flag/flag"
 
 export namespace BunProc {
   const log = Log.create({ service: "bun" })
@@ -61,6 +62,14 @@ export namespace BunProc {
     }),
   )
 
+  export const InstallDisabledError = NamedError.create(
+    "BunInstallDisabledError",
+    z.object({
+      pkg: z.string(),
+      version: z.string(),
+    }),
+  )
+
   export async function install(pkg: string, version = "latest") {
     // Use lock to ensure only one install at a time
     using _ = await Lock.write("bun-install")
@@ -76,6 +85,13 @@ export namespace BunProc {
     const dependencies = parsed.dependencies
     const modExists = await Filesystem.exists(mod)
     const cachedVersion = dependencies[pkg]
+
+    if (Flag.OPENCODE_DISABLE_DYNAMIC_INSTALLS) {
+      if (modExists && cachedVersion) {
+        return mod
+      }
+      throw new InstallDisabledError({ pkg, version })
+    }
 
     if (!modExists || !cachedVersion) {
       // continue to install

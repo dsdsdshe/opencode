@@ -2,6 +2,7 @@ import { eq, and } from "drizzle-orm"
 import { Database } from "@/storage/db"
 import { ControlAccountTable } from "./control.sql"
 import z from "zod"
+import { Safe } from "@/util/safe"
 
 export * from "./control.sql"
 
@@ -32,6 +33,8 @@ export namespace Control {
     )
     if (!row) return undefined
     if (row.token_expiry && row.token_expiry > Date.now()) return row.access_token
+
+    Safe.assert(`${row.url}/oauth/token`)
 
     const res = await fetch(`${row.url}/oauth/token`, {
       method: "POST",

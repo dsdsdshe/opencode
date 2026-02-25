@@ -427,10 +427,13 @@ pub fn serve(
 
     tracing::info!(port, "Spawning sidecar");
 
-    let envs = [
+    let mut envs = vec![
         ("OPENCODE_SERVER_USERNAME", "opencode".to_string()),
         ("OPENCODE_SERVER_PASSWORD", password.to_string()),
     ];
+    if option_env!("OPENCODE_SAFE_MODE").is_some() {
+        envs.push(("OPENCODE_SAFE_MODE", "1".to_string()));
+    }
 
     let (events, child) = spawn_command(
         app,

@@ -3,6 +3,7 @@ import { mkdir } from "fs/promises"
 import { Log } from "../util/log"
 import { Global } from "../global"
 import { Filesystem } from "../util/filesystem"
+import { Safe } from "@/util/safe"
 
 export namespace Discovery {
   const log = Log.create({ service: "skill-discovery" })
@@ -15,12 +16,18 @@ export namespace Discovery {
     }>
   }
 
+  type Security = {
+    safe_mode?: boolean
+    allowed_hosts?: string[]
+  }
+
   export function dir() {
     return path.join(Global.Path.cache, "skills")
   }
 
-  async function get(url: string, dest: string): Promise<boolean> {
+  async function get(url: string, dest: string, security?: Security): Promise<boolean> {
     if (await Filesystem.exists(dest)) return true
+    Safe.assert(url, security)
     return fetch(url)
       .then(async (response) => {
         if (!response.ok) {
@@ -36,14 +43,16 @@ export namespace Discovery {
       })
   }
 
-  export async function pull(url: string): Promise<string[]> {
+  export async function pull(url: string, security?: Security): Promise<string[]> {
     const result: string[] = []
+    if (Safe.on(security)) return result
     const base = url.endsWith("/") ? url : `${url}/`
     const index = new URL("index.json", base).href
     const cache = dir()
     const host = base.slice(0, -1)
 
     log.info("fetching index", { url: index })
+    Safe.assert(index, security)
     const data = await fetch(index)
       .then(async (response) => {
         if (!response.ok) {
@@ -84,7 +93,7 @@ export namespace Discovery {
             const link = new URL(file, `${host}/${skill.name}/`).href
             const dest = path.join(root, file)
             await mkdir(path.dirname(dest), { recursive: true })
-            await get(link, dest)
+            await get(link, dest, security)
           }),
         )
 

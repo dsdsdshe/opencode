@@ -17,6 +17,7 @@ import { iife } from "@/util/iife"
 import { Global } from "../global"
 import path from "path"
 import { Filesystem } from "../util/filesystem"
+import { Safe } from "@/util/safe"
 
 // Direct imports for bundled providers
 import { createAmazonBedrock, type AmazonBedrockProviderSettings } from "@ai-sdk/amazon-bedrock"
@@ -1045,6 +1046,7 @@ export namespace Provider {
       })
       const s = await state()
       const provider = s.providers[model.providerID]
+      const config = await Config.get()
       const options = { ...provider.options }
 
       if (model.providerID === "google-vertex" && !model.api.npm.includes("@ai-sdk/openai-compatible")) {
@@ -1074,6 +1076,16 @@ export namespace Provider {
         // Preserve custom fetch if it exists, wrap it with timeout logic
         const fetchFn = customFetch ?? fetch
         const opts = init ?? {}
+
+        const url =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.toString()
+              : input instanceof Request
+                ? input.url
+                : String(input)
+        Safe.assert(url, config.security)
 
         if (options["timeout"] !== undefined && options["timeout"] !== null) {
           const signals: AbortSignal[] = []
@@ -1123,6 +1135,9 @@ export namespace Provider {
 
       let installedPath: string
       if (!model.api.npm.startsWith("file://")) {
+        if (Safe.dynamic(config.security)) {
+          throw new Error(`Dynamic provider install is disabled: ${model.api.npm}`)
+        }
         installedPath = await BunProc.install(model.api.npm, "latest")
       } else {
         log.info("loading local provider", { pkg: model.api.npm })

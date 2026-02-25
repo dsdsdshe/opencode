@@ -6,6 +6,7 @@ import { NamedError } from "@opencode-ai/util/error"
 import { Log } from "../util/log"
 import { iife } from "@/util/iife"
 import { Flag } from "../flag/flag"
+import { Safe } from "@/util/safe"
 
 declare global {
   const OPENCODE_VERSION: string
@@ -129,6 +130,9 @@ export namespace Installation {
   }
 
   export async function upgrade(method: Method, target: string) {
+    if (Safe.on()) {
+      throw new Error("Upgrade is disabled in safe mode")
+    }
     let cmd
     switch (method) {
       case "curl":
@@ -194,6 +198,7 @@ export namespace Installation {
   export const USER_AGENT = `opencode/${CHANNEL}/${VERSION}/${Flag.OPENCODE_CLIENT}`
 
   export async function latest(installMethod?: Method) {
+    if (Safe.on()) return VERSION
     const detectedMethod = installMethod || (await method())
 
     if (detectedMethod === "brew") {

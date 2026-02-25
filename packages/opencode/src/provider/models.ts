@@ -6,6 +6,7 @@ import { Installation } from "../installation"
 import { Flag } from "../flag/flag"
 import { lazy } from "@/util/lazy"
 import { Filesystem } from "../util/filesystem"
+import { Safe } from "@/util/safe"
 
 // Try to import bundled snapshot (generated at build time)
 // Falls back to undefined in dev mode when snapshot doesn't exist
@@ -93,8 +94,10 @@ export namespace ModelsDev {
       .then((m) => m.snapshot as Record<string, unknown>)
       .catch(() => undefined)
     if (snapshot) return snapshot
-    if (Flag.OPENCODE_DISABLE_MODELS_FETCH) return {}
-    const json = await fetch(`${url()}/api.json`).then((x) => x.text())
+    if (Flag.OPENCODE_DISABLE_MODELS_FETCH || Safe.on()) return {}
+    const target = `${url()}/api.json`
+    Safe.assert(target)
+    const json = await fetch(target).then((x) => x.text())
     return JSON.parse(json)
   })
 
@@ -104,7 +107,10 @@ export namespace ModelsDev {
   }
 
   export async function refresh() {
-    const result = await fetch(`${url()}/api.json`, {
+    if (Flag.OPENCODE_DISABLE_MODELS_FETCH || Safe.on()) return
+    const target = `${url()}/api.json`
+    Safe.assert(target)
+    const result = await fetch(target, {
       headers: {
         "User-Agent": Installation.USER_AGENT,
       },
@@ -121,7 +127,7 @@ export namespace ModelsDev {
   }
 }
 
-if (!Flag.OPENCODE_DISABLE_MODELS_FETCH && !process.argv.includes("--get-yargs-completions")) {
+if (!Flag.OPENCODE_DISABLE_MODELS_FETCH && !Safe.on() && !process.argv.includes("--get-yargs-completions")) {
   ModelsDev.refresh()
   setInterval(
     async () => {

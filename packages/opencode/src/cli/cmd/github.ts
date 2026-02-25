@@ -28,6 +28,8 @@ import { Bus } from "../../bus"
 import { MessageV2 } from "../../session/message-v2"
 import { SessionPrompt } from "@/session/prompt"
 import { $ } from "bun"
+import { Safe } from "@/util/safe"
+import { Config } from "@/config/config"
 
 type GitHubAuthor = {
   login: string
@@ -197,9 +199,18 @@ export const GithubInstallCommand = cmd({
   command: "install",
   describe: "install the GitHub agent",
   async handler() {
+    if (Safe.on()) {
+      throw new Error("GitHub integration is disabled in safe mode")
+    }
+
     await Instance.provide({
       directory: process.cwd(),
       async fn() {
+        const config = await Config.get()
+        if (Safe.on(config.security)) {
+          throw new Error("GitHub integration is disabled in safe mode")
+        }
+
         {
           UI.empty()
           prompts.intro("Install GitHub agent")
@@ -430,7 +441,16 @@ export const GithubRunCommand = cmd({
         describe: "GitHub personal access token (github_pat_********)",
       }),
   async handler(args) {
+    if (Safe.on()) {
+      throw new Error("GitHub integration is disabled in safe mode")
+    }
+
     await bootstrap(process.cwd(), async () => {
+      const config = await Config.get()
+      if (Safe.on(config.security)) {
+        throw new Error("GitHub integration is disabled in safe mode")
+      }
+
       const isMock = args.token || args.event
 
       const context = isMock ? (JSON.parse(args.event!) as Context) : github.context

@@ -541,6 +541,9 @@ export namespace Server {
           },
         )
         .all("/*", async (c) => {
+          if (Flag.OPENCODE_SAFE_MODE) {
+            return c.text("Web UI proxy is disabled in safe mode", 403)
+          }
           const path = c.req.path
 
           const response = await proxy(`https://app.opencode.ai${path}`, {

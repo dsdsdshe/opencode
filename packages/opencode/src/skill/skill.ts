@@ -154,7 +154,7 @@ export namespace Skill {
 
     // Download and load skills from URLs
     for (const url of config.skills?.urls ?? []) {
-      const list = await Discovery.pull(url)
+      const list = await Discovery.pull(url, config.security)
       for (const dir of list) {
         dirs.add(dir)
         const matches = await Glob.scan(SKILL_PATTERN, {

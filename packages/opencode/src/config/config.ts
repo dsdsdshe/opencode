@@ -34,6 +34,7 @@ import { PackageRegistry } from "@/bun/registry"
 import { proxied } from "@/util/proxied"
 import { iife } from "@/util/iife"
 import { Control } from "@/control"
+import { Safe } from "@/util/safe"
 
 export namespace Config {
   const ModelId = z.string().meta({ $ref: "https://models.dev/model-schema.json#/$defs/Model" })
@@ -82,8 +83,10 @@ export namespace Config {
     for (const [key, value] of Object.entries(auth)) {
       if (value.type === "wellknown") {
         process.env[value.key] = value.token
-        log.debug("fetching remote config", { url: `${key}/.well-known/opencode` })
-        const response = await fetch(`${key}/.well-known/opencode`)
+        const url = `${key}/.well-known/opencode`
+        Safe.assert(url)
+        log.debug("fetching remote config", { url })
+        const response = await fetch(url)
         if (!response.ok) {
           throw new Error(`failed to fetch remote config from ${key}: ${response.status}`)
         }
@@ -129,6 +132,16 @@ export namespace Config {
     result.mode = result.mode || {}
     result.plugin = result.plugin || []
 
+    // Read managed security policy early so dependency installation can be skipped
+    // before scanning .opencode directories.
+    if (existsSync(managedConfigDir)) {
+      for (const file of ["opencode.jsonc", "opencode.json"]) {
+        const managed = await loadFile(path.join(managedConfigDir, file))
+        if (!managed.security) continue
+        result.security = mergeDeep(result.security ?? {}, managed.security)
+      }
+    }
+
     const directories = [
       Global.Path.config,
       // Only scan project .opencode/ directories when project discovery is enabled
@@ -171,12 +184,14 @@ export namespace Config {
         }
       }
 
-      deps.push(
-        iife(async () => {
-          const shouldInstall = await needsInstall(dir)
-          if (shouldInstall) await installDependencies(dir)
-        }),
-      )
+      if (!Safe.dynamic(result.security)) {
+        deps.push(
+          iife(async () => {
+            const shouldInstall = await needsInstall(dir)
+            if (shouldInstall) await installDependencies(dir)
+          }),
+        )
+      }
 
       result.command = mergeDeep(result.command ?? {}, await loadCommand(dir))
       result.agent = mergeDeep(result.agent, await loadAgent(dir))
@@ -266,6 +281,7 @@ export namespace Config {
   }
 
   export async function installDependencies(dir: string) {
+    if (Flag.OPENCODE_DISABLE_DYNAMIC_INSTALLS) return
     const pkg = path.join(dir, "package.json")
     const targetVersion = Installation.isLocal() ? "*" : Installation.VERSION
 
@@ -1169,6 +1185,27 @@ export namespace Config {
       enterprise: z
         .object({
           url: z.string().optional().describe("Enterprise URL"),
+        })
+        .optional(),
+      security: z
+        .object({
+          safe_mode: z.boolean().optional().describe("Enable intranet-safe mode to block non-allowlisted outbound HTTP"),
+          allowed_hosts: z
+            .array(z.string())
+            .optional()
+            .describe("Hosts allowed for outbound HTTP in safe mode (exact host, host:port, or *.domain)"),
+          disable_dynamic_installs: z
+            .boolean()
+            .optional()
+            .describe("Disable runtime npm package installs for plugins/providers"),
+          disable_remote_instructions: z
+            .boolean()
+            .optional()
+            .describe("Disable loading instructions from remote URLs"),
+          disable_remote_mcp: z
+            .boolean()
+            .optional()
+            .describe("Disable all remote MCP servers"),
         })
         .optional(),
       compaction: z

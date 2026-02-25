@@ -2,6 +2,8 @@ import z from "zod"
 import { Tool } from "./tool"
 import DESCRIPTION from "./websearch.txt"
 import { abortAfterAny } from "../util/abort"
+import { Safe } from "@/util/safe"
+import { Config } from "@/config/config"
 
 const API_CONFIG = {
   BASE_URL: "https://mcp.exa.ai",
@@ -63,6 +65,11 @@ export const WebSearchTool = Tool.define("websearch", async () => {
         .describe("Maximum characters for context string optimized for LLMs (default: 10000)"),
     }),
     async execute(params, ctx) {
+      const cfg = await Config.get()
+      if (Safe.on(cfg.security)) {
+        throw new Error("websearch is disabled in safe mode")
+      }
+
       await ctx.ask({
         permission: "websearch",
         patterns: [params.query],
@@ -95,6 +102,8 @@ export const WebSearchTool = Tool.define("websearch", async () => {
       const { signal, clearTimeout } = abortAfterAny(25000, ctx.abort)
 
       try {
+        Safe.assert(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.SEARCH}`, cfg.security)
+
         const headers: Record<string, string> = {
           accept: "application/json, text/event-stream",
           "content-type": "application/json",

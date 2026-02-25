@@ -11,6 +11,7 @@ import { Global } from "../../global"
 import { Plugin } from "../../plugin"
 import { Instance } from "../../project/instance"
 import type { Hooks } from "@opencode-ai/plugin"
+import { Safe } from "@/util/safe"
 
 type PluginAuth = NonNullable<Hooks["auth"]>
 
@@ -261,6 +262,8 @@ export const AuthLoginCommand = cmd({
         UI.empty()
         prompts.intro("Add credential")
         if (args.url) {
+          const cfg = await Config.get()
+          Safe.assert(`${args.url}/.well-known/opencode`, cfg.security)
           const wellknown = await fetch(`${args.url}/.well-known/opencode`).then((x) => x.json() as any)
           prompts.log.info(`Running \`${wellknown.auth.command.join(" ")}\``)
           const proc = Bun.spawn({

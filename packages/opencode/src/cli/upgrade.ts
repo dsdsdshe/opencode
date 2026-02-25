@@ -2,9 +2,11 @@ import { Bus } from "@/bus"
 import { Config } from "@/config/config"
 import { Flag } from "@/flag/flag"
 import { Installation } from "@/installation"
+import { Safe } from "@/util/safe"
 
 export async function upgrade() {
   const config = await Config.global()
+  if (Safe.on(config.security)) return
   const method = await Installation.method()
   const latest = await Installation.latest(method).catch(() => {})
   if (!latest) return

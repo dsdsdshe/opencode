@@ -15,6 +15,7 @@ import { Global } from "../../global"
 import { modify, applyEdits } from "jsonc-parser"
 import { Filesystem } from "../../util/filesystem"
 import { Bus } from "../../bus"
+import { Safe } from "../../util/safe"
 
 function getAuthStatusIcon(status: MCP.AuthStatus): string {
   switch (status) {
@@ -608,6 +609,23 @@ export const McpDebugCommand = cmd({
 
         if (!isMcpRemote(serverConfig)) {
           prompts.log.error(`MCP server ${serverName} is not a remote server`)
+          prompts.outro("Done")
+          return
+        }
+
+        if (Safe.mcp(config.security)) {
+          prompts.log.error("Remote MCP is disabled by security policy")
+          prompts.outro("Done")
+          return
+        }
+
+        if (!Safe.allow(serverConfig.url, config.security)) {
+          const hosts = Safe.hosts(config.security)
+          prompts.log.error(
+            hosts.length
+              ? `MCP URL blocked by safe mode. Allowed hosts: ${hosts.join(", ")}`
+              : "MCP URL blocked by safe mode. Configure security.allowed_hosts to allow this server.",
+          )
           prompts.outro("Done")
           return
         }
