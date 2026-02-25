@@ -12,6 +12,11 @@ function Resolve-Installer {
   }
 
   $scriptRoot = Split-Path -Parent $PSCommandPath
+  $preferred = Join-Path $scriptRoot "OpenCode-Setup.exe"
+  if (Test-Path -LiteralPath $preferred -PathType Leaf) {
+    return (Resolve-Path -LiteralPath $preferred).Path
+  }
+
   $candidate = Get-ChildItem -Path $scriptRoot -Filter *.exe -File |
     Sort-Object LastWriteTime -Descending |
     Select-Object -First 1
@@ -32,9 +37,14 @@ if (-not (Test-Path $cfgSource)) {
 
 $installer = Resolve-Installer -GivenPath $InstallerPath
 Write-Host "Running installer: $installer"
-$process = Start-Process -FilePath $installer -ArgumentList "/S" -Wait -PassThru
-if ($process.ExitCode -ne 0) {
-  throw "Installer failed with exit code $($process.ExitCode)"
+if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) {
+  throw "Installer not found: $installer"
+}
+Unblock-File -LiteralPath $installer -ErrorAction SilentlyContinue
+& $installer "/S"
+$code = $LASTEXITCODE
+if ($code -ne 0) {
+  throw "Installer failed with exit code $code"
 }
 
 $baseDir = Join-Path $env:LOCALAPPDATA "opencode-demo"
