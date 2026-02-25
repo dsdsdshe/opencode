@@ -40,6 +40,27 @@ fn configure_display_backend() -> Option<String> {
 }
 
 fn main() {
+    let disable_proxy = std::env::var("OPENCODE_DISABLE_PROXY")
+        .map(|value| {
+            let value = value.trim().to_ascii_lowercase();
+            value == "1" || value == "true" || value == "yes" || value == "on"
+        })
+        .unwrap_or(false);
+
+    if disable_proxy {
+        for key in [
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "ALL_PROXY",
+            "http_proxy",
+            "https_proxy",
+            "all_proxy",
+        ] {
+            // Safety: called during startup before any threads are spawned.
+            unsafe { std::env::remove_var(key) };
+        }
+    }
+
     // Ensure loopback connections are never sent through proxy settings.
     // Some VPNs/proxies set HTTP_PROXY/HTTPS_PROXY/ALL_PROXY without excluding localhost.
     let mut bypass = vec![

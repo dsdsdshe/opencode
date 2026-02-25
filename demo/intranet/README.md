@@ -8,6 +8,7 @@ This package is for a simple demo deployment:
 - Fixed model: `MiniMaxAI/MiniMax-M2.5`
 - Safe mode and outbound host allowlist enabled
 - Proxy bypass for `10.90.79.111` is configured automatically (no manual `no_proxy` required)
+- Proxy usage is disabled by default (`OPENCODE_DISABLE_PROXY=1`) for direct-only intranet access
 
 ## Linux (CLI)
 

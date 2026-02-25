@@ -134,6 +134,7 @@ $vars = @{
   OPENCODE_DISABLE_REMOTE_MCP          = "1"
   OPENCODE_DISABLE_AUTOUPDATE          = "1"
   OPENCODE_DISABLE_DEFAULT_PLUGINS     = "1"
+  OPENCODE_DISABLE_PROXY               = "1"
   XDG_CONFIG_HOME                      = $xdgConfig
   XDG_DATA_HOME                        = $xdgData
   XDG_CACHE_HOME                       = $xdgCache
