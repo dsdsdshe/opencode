@@ -12,7 +12,8 @@ This package is for a simple demo deployment:
 
 Package contents:
 
-- `opencode` (binary)
+- `opencode-glibc` (Linux binary for glibc distributions)
+- `opencode-musl` (Linux binary for musl distributions)
 - `opencode.json`
 - `install.sh`
 

@@ -21,20 +21,48 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build Linux CLI binary
-        run: bun run script/build.ts --single --baseline --skip-install
-        working-directory: packages/opencode
+      - name: Build Linux CLI binaries
+        run: |
+          set -euo pipefail
+          mkdir -p out/linux-bin
+
+          bun run script/build.ts --single --baseline --skip-install
+          GLIBC_BIN="$(
+            find packages/opencode/dist -type f -path "*/opencode-linux-*/bin/opencode" |
+              grep -v musl |
+              head -n 1 ||
+              true
+          )"
+          if [ -z "$GLIBC_BIN" ]; then
+            echo "glibc Linux binary not found"
+            exit 1
+          fi
+          cp "$GLIBC_BIN" out/linux-bin/opencode-glibc
+
+          bun run script/build.ts --single --baseline --abi=musl --skip-install
+          MUSL_BIN="$(
+            find packages/opencode/dist -type f -path "*/opencode-linux-*-musl/bin/opencode" |
+              head -n 1 ||
+              true
+          )"
+          if [ -z "$MUSL_BIN" ]; then
+            echo "musl Linux binary not found"
+            exit 1
+          fi
+          cp "$MUSL_BIN" out/linux-bin/opencode-musl
+
+          chmod +x out/linux-bin/opencode-glibc out/linux-bin/opencode-musl
 
       - name: Create Linux demo bundle
         run: |
           set -euo pipefail
-          BIN_PATH="$(ls packages/opencode/dist/opencode-linux-*/bin/opencode | head -n 1)"
           mkdir -p out/linux
-          cp "$BIN_PATH" out/linux/opencode
+          cp out/linux-bin/opencode-glibc out/linux/opencode-glibc
+          cp out/linux-bin/opencode-musl out/linux/opencode-musl
           cp demo/intranet/opencode.json out/linux/opencode.json
           cp demo/intranet/linux/install.sh out/linux/install.sh
           cp demo/intranet/README.md out/linux/README.md
-          chmod +x out/linux/opencode out/linux/install.sh
+          chmod +x out/linux/opencode-glibc out/linux/opencode-musl out/linux/install.sh
           tar -C out/linux -czf out/opencode-linux-cli-demo.tar.gz .
 
       - uses: actions/upload-artifact@v4

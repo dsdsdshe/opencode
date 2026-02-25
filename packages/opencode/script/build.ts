@@ -62,6 +62,9 @@ console.log(`Loaded ${migrations.length} migrations`)
 const singleFlag = process.argv.includes("--single") || (!!process.env.CI && !process.argv.includes("--all"))
 const baselineFlag = process.argv.includes("--baseline")
 const skipInstall = process.argv.includes("--skip-install")
+const abiFlag = process.argv.includes("--musl")
+  ? "musl"
+  : process.argv.find((item) => item.startsWith("--abi="))?.slice("--abi=".length)
 
 const allTargets: {
   os: string
@@ -117,26 +120,40 @@ const allTargets: {
   },
 ]
 
+if (abiFlag && !allTargets.some((item) => item.abi === abiFlag)) {
+  throw new Error(`Unsupported abi: ${abiFlag}`)
+}
+
 const targets = singleFlag
   ? allTargets.filter((item) => {
       if (item.os !== process.platform || item.arch !== process.arch) {
         return false
       }
 
-      // When building for the current platform, prefer a single native binary by default.
-      // Baseline binaries require additional Bun artifacts and can be flaky to download.
-      if (item.avx2 === false) {
-        return baselineFlag
-      }
+      if (abiFlag && item.abi !== abiFlag) return false
+      if (!abiFlag && item.abi !== undefined) return false
+      if (item.avx2 === false) return baselineFlag
 
-      // also skip abi-specific builds for the same reason
-      if (item.abi !== undefined) {
+      if (
+        baselineFlag &&
+        allTargets.some(
+          (target) =>
+            target.os === item.os &&
+            target.arch === item.arch &&
+            target.abi === item.abi &&
+            target.avx2 === false,
+        )
+      ) {
         return false
       }
 
       return true
     })
   : allTargets
+
+if (targets.length === 0) {
+  throw new Error(`No build targets selected for platform=${process.platform} arch=${process.arch} abi=${abiFlag ?? "default"}`)
+}
 
 await $`rm -rf dist`
 
