@@ -38,6 +38,12 @@ jobs:
             exit 1
           fi
           cp "$GLIBC_BIN" out/linux-bin/opencode-glibc
+          GLIBC_RG="$(dirname "$GLIBC_BIN")/rg"
+          if [ ! -f "$GLIBC_RG" ]; then
+            echo "glibc ripgrep sidecar not found"
+            exit 1
+          fi
+          cp "$GLIBC_RG" out/linux-bin/rg-glibc
 
           bun run ./packages/opencode/script/build.ts --single --baseline --abi=musl --skip-install
           MUSL_BIN="$(
@@ -50,8 +56,14 @@ jobs:
             exit 1
           fi
           cp "$MUSL_BIN" out/linux-bin/opencode-musl
+          MUSL_RG="$(dirname "$MUSL_BIN")/rg"
+          if [ ! -f "$MUSL_RG" ]; then
+            echo "musl ripgrep sidecar not found"
+            exit 1
+          fi
+          cp "$MUSL_RG" out/linux-bin/rg-musl
 
-          chmod +x out/linux-bin/opencode-glibc out/linux-bin/opencode-musl
+          chmod +x out/linux-bin/opencode-glibc out/linux-bin/opencode-musl out/linux-bin/rg-glibc out/linux-bin/rg-musl
 
       - name: Create Linux demo bundle
         run: |
@@ -59,10 +71,12 @@ jobs:
           mkdir -p out/linux
           cp out/linux-bin/opencode-glibc out/linux/opencode-glibc
           cp out/linux-bin/opencode-musl out/linux/opencode-musl
+          cp out/linux-bin/rg-glibc out/linux/rg-glibc
+          cp out/linux-bin/rg-musl out/linux/rg-musl
           cp demo/intranet/opencode.json out/linux/opencode.json
           cp demo/intranet/linux/install.sh out/linux/install.sh
           cp demo/intranet/README.md out/linux/README.md
-          chmod +x out/linux/opencode-glibc out/linux/opencode-musl out/linux/install.sh
+          chmod +x out/linux/opencode-glibc out/linux/opencode-musl out/linux/rg-glibc out/linux/rg-musl out/linux/install.sh
           tar -C out/linux -czf out/opencode-linux-cli-demo.tar.gz .
 
       - uses: actions/upload-artifact@v4

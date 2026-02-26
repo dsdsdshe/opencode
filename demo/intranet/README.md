@@ -17,6 +17,8 @@ Package contents:
 
 - `opencode-glibc` (Linux binary for glibc distributions)
 - `opencode-musl` (Linux binary for musl distributions)
+- `rg-glibc` (ripgrep sidecar for glibc path)
+- `rg-musl` (ripgrep sidecar for musl path)
 - `opencode.json`
 - `install.sh`
 

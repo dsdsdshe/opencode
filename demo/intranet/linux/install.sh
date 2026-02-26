@@ -5,6 +5,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_BIN_GLIBC="$ROOT/opencode-glibc"
 SOURCE_BIN_MUSL="$ROOT/opencode-musl"
 SOURCE_BIN_LEGACY="$ROOT/opencode"
+SOURCE_RG_GLIBC="$ROOT/rg-glibc"
+SOURCE_RG_MUSL="$ROOT/rg-musl"
 SOURCE_CONFIG="$ROOT/opencode.json"
 
 if [ ! -f "$SOURCE_BIN_GLIBC" ] && [ ! -f "$SOURCE_BIN_MUSL" ] && [ ! -f "$SOURCE_BIN_LEGACY" ]; then
@@ -45,6 +47,12 @@ fi
 if [ -f "$SOURCE_BIN_LEGACY" ] && [ ! -f "$SOURCE_BIN_GLIBC" ]; then
   install -m 755 "$SOURCE_BIN_LEGACY" "$APP_DIR/opencode-glibc"
 fi
+if [ -f "$SOURCE_RG_GLIBC" ]; then
+  install -m 755 "$SOURCE_RG_GLIBC" "$APP_DIR/rg-glibc"
+fi
+if [ -f "$SOURCE_RG_MUSL" ]; then
+  install -m 755 "$SOURCE_RG_MUSL" "$APP_DIR/rg-musl"
+fi
 install -m 644 "$SOURCE_CONFIG" "$CFG_DIR/opencode.json"
 
 cat >"$BIN_DIR/opencode" <<'EOF'
@@ -55,6 +63,9 @@ CFG="${XDG_CONFIG_HOME:-$HOME/.config}/opencode-demo/opencode.json"
 BIN_GLIBC="${XDG_DATA_HOME:-$HOME/.local/share}/opencode-demo/opencode-glibc"
 BIN_MUSL="${XDG_DATA_HOME:-$HOME/.local/share}/opencode-demo/opencode-musl"
 BIN_LEGACY="${XDG_DATA_HOME:-$HOME/.local/share}/opencode-demo/opencode-real"
+RG_GLIBC="${XDG_DATA_HOME:-$HOME/.local/share}/opencode-demo/rg-glibc"
+RG_MUSL="${XDG_DATA_HOME:-$HOME/.local/share}/opencode-demo/rg-musl"
+RG_LINK="${XDG_DATA_HOME:-$HOME/.local/share}/opencode-demo/rg"
 RUNTIME_BASE="${XDG_DATA_HOME:-$HOME/.local/share}/opencode-demo/runtime"
 
 export OPENCODE_CONFIG="$CFG"
@@ -121,6 +132,36 @@ if [ -z "$BIN" ]; then
   echo "  - $BIN_MUSL"
   echo "  - $BIN_LEGACY"
   exit 1
+fi
+
+pick_rg() {
+  if [ "$BIN" = "$BIN_GLIBC" ] && [ -x "$RG_GLIBC" ]; then
+    echo "$RG_GLIBC"
+    return 0
+  fi
+
+  if [ "$BIN" = "$BIN_MUSL" ] && [ -x "$RG_MUSL" ]; then
+    echo "$RG_MUSL"
+    return 0
+  fi
+
+  if [ -x "$RG_GLIBC" ]; then
+    echo "$RG_GLIBC"
+    return 0
+  fi
+
+  if [ -x "$RG_MUSL" ]; then
+    echo "$RG_MUSL"
+    return 0
+  fi
+
+  return 1
+}
+
+RG="$(pick_rg || true)"
+if [ -n "$RG" ]; then
+  ln -sf "$RG" "$RG_LINK" 2>/dev/null || cp -f "$RG" "$RG_LINK"
+  chmod 755 "$RG_LINK" || true
 fi
 
 exec "$BIN" "$@"
