@@ -3,7 +3,7 @@
 This package is for a simple demo deployment:
 
 - Linux: CLI only
-- Windows: desktop client only
+- Windows: desktop client and CLI (separate packages)
 - Fixed model endpoint: `http://10.90.79.111:8000/v1`
 - Fixed model: `MiniMaxAI/MiniMax-M2.5`
 - Safe mode and outbound host allowlist enabled
@@ -54,3 +54,29 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
 After install, launch OpenCode normally from Start Menu.
+
+## Windows (CLI)
+
+Package contents:
+
+- `opencode.exe` (Windows CLI binary)
+- `rg.exe` (ripgrep sidecar)
+- `opencode.json`
+- `install.ps1`
+- `install.cmd`
+
+Install (double-click):
+
+Double-click `install.cmd`.
+
+Install (PowerShell, optional):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+After install, open a new terminal and run:
+
+```powershell
+opencode
+```
