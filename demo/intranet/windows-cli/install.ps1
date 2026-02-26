@@ -33,6 +33,7 @@ $baseDir = Join-Path $env:LOCALAPPDATA "opencode-demo\cli"
 $binDir = Join-Path $baseDir "bin"
 $cfgPath = Join-Path $baseDir "opencode.json"
 $runtimeDir = Join-Path $baseDir "runtime"
+$runtimeBinDir = Join-Path $runtimeDir "xdg-data\opencode\bin"
 $shimDir = Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps"
 $shimPath = Join-Path $shimDir "opencode.cmd"
 
@@ -43,10 +44,11 @@ New-Item -ItemType Directory -Force -Path (Join-Path $runtimeDir "xdg-data") | O
 New-Item -ItemType Directory -Force -Path (Join-Path $runtimeDir "xdg-cache") | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $runtimeDir "xdg-state") | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $runtimeDir "home") | Out-Null
-New-Item -ItemType Directory -Force -Path (Join-Path $runtimeDir "xdg-data\opencode\bin") | Out-Null
+New-Item -ItemType Directory -Force -Path $runtimeBinDir | Out-Null
 
 Copy-Item -LiteralPath $srcExe -Destination (Join-Path $binDir "opencode.exe") -Force
 Copy-Item -LiteralPath $srcRg -Destination (Join-Path $binDir "rg.exe") -Force
+Copy-Item -LiteralPath $srcRg -Destination (Join-Path $runtimeBinDir "rg.exe") -Force
 Copy-Item -LiteralPath $srcCfg -Destination $cfgPath -Force
 
 $launcher = @'
@@ -54,7 +56,8 @@ $launcher = @'
 setlocal
 
 set "BASE=%LOCALAPPDATA%\opencode-demo\cli"
-set "BIN=%BASE%\bin\opencode.exe"
+set "BIN_DIR=%BASE%\bin"
+set "BIN=%BIN_DIR%\opencode.exe"
 if not exist "%BIN%" (
   echo OpenCode CLI not found at "%BIN%".
   exit /b 1
@@ -77,8 +80,16 @@ set "ALL_PROXY="
 set "http_proxy="
 set "https_proxy="
 set "all_proxy="
-set "NO_PROXY=127.0.0.1,localhost,::1,10.90.79.111,10.90.79.111:8000"
-set "no_proxy=127.0.0.1,localhost,::1,10.90.79.111,10.90.79.111:8000"
+if defined NO_PROXY (
+  set "NO_PROXY=%NO_PROXY%,127.0.0.1,localhost,::1,10.90.79.111,10.90.79.111:8000"
+) else (
+  set "NO_PROXY=127.0.0.1,localhost,::1,10.90.79.111,10.90.79.111:8000"
+)
+if defined no_proxy (
+  set "no_proxy=%no_proxy%,127.0.0.1,localhost,::1,10.90.79.111,10.90.79.111:8000"
+) else (
+  set "no_proxy=127.0.0.1,localhost,::1,10.90.79.111,10.90.79.111:8000"
+)
 
 set "RUNTIME=%BASE%\runtime"
 set "XDG_CONFIG_HOME=%RUNTIME%\xdg-config"
@@ -86,8 +97,9 @@ set "XDG_DATA_HOME=%RUNTIME%\xdg-data"
 set "XDG_CACHE_HOME=%RUNTIME%\xdg-cache"
 set "XDG_STATE_HOME=%RUNTIME%\xdg-state"
 set "OPENCODE_TEST_HOME=%RUNTIME%\home"
+set "RUNTIME_BIN=%RUNTIME%\xdg-data\opencode\bin"
 
-set "PATH=%BASE%\bin;%PATH%"
+set "PATH=%BIN_DIR%;%RUNTIME_BIN%;%PATH%"
 "%BIN%" %*
 '@
 
