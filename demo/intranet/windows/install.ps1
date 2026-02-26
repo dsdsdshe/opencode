@@ -41,8 +41,18 @@ if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) {
   throw "Installer not found: $installer"
 }
 Unblock-File -LiteralPath $installer -ErrorAction SilentlyContinue
-& $installer "/S"
-$code = $LASTEXITCODE
+$process = [System.Diagnostics.Process]::new()
+$process.StartInfo = [System.Diagnostics.ProcessStartInfo]::new()
+$process.StartInfo.FileName = $installer
+$process.StartInfo.Arguments = "/S"
+$process.StartInfo.WorkingDirectory = Split-Path -Parent $installer
+$process.StartInfo.UseShellExecute = $true
+$started = $process.Start()
+if (-not $started) {
+  throw "Failed to start installer: $installer"
+}
+$process.WaitForExit()
+$code = $process.ExitCode
 if ($code -ne 0) {
   throw "Installer failed with exit code $code"
 }
