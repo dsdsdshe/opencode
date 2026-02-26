@@ -203,17 +203,24 @@ fn url_is_localhost(url: &reqwest::Url) -> bool {
 
 /// Converts a bind address hostname to a valid URL hostname for connection.
 /// - `0.0.0.0` and `::` are wildcard bind addresses, not valid connect targets
-/// - IPv6 addresses need brackets in URLs (e.g., `::1` -> `[::1]`)
+/// - Loopback IPv6 values are normalized to IPv4 localhost for desktop URL scope compatibility
+/// - Non-loopback IPv6 addresses need brackets in URLs
 fn normalize_hostname_for_url(hostname: &str) -> String {
-    // Wildcard bind addresses -> localhost equivalents
-    if hostname == "0.0.0.0" {
+    if hostname == "0.0.0.0" || hostname == "::" {
         return "127.0.0.1".to_string();
     }
-    if hostname == "::" {
-        return "[::1]".to_string();
+
+    let trimmed = hostname.trim_matches(|c| c == '[' || c == ']');
+    if let Ok(ip) = trimmed.parse::<std::net::IpAddr>() {
+        if ip.is_loopback() {
+            return "127.0.0.1".to_string();
+        }
+        if ip.is_ipv6() {
+            return format!("[{}]", ip);
+        }
+        return ip.to_string();
     }
 
-    // IPv6 addresses need brackets in URLs
     if hostname.contains(':') && !hostname.starts_with('[') {
         return format!("[{}]", hostname);
     }
@@ -260,4 +267,27 @@ pub async fn check_health_or_ask_retry(app: &AppHandle, url: &str) -> bool {
     }
 
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_hostname_for_url;
+
+    #[test]
+    fn normalize_wildcard_bind_addresses_to_ipv4_loopback() {
+        assert_eq!(normalize_hostname_for_url("0.0.0.0"), "127.0.0.1");
+        assert_eq!(normalize_hostname_for_url("::"), "127.0.0.1");
+    }
+
+    #[test]
+    fn normalize_ipv6_loopback_to_ipv4_loopback() {
+        assert_eq!(normalize_hostname_for_url("::1"), "127.0.0.1");
+        assert_eq!(normalize_hostname_for_url("[::1]"), "127.0.0.1");
+    }
+
+    #[test]
+    fn keep_non_loopback_ipv6_bracketed() {
+        assert_eq!(normalize_hostname_for_url("2001:db8::1"), "[2001:db8::1]");
+        assert_eq!(normalize_hostname_for_url("[2001:db8::1]"), "[2001:db8::1]");
+    }
 }
