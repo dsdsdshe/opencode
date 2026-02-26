@@ -48,9 +48,17 @@ jobs:
           wait-for-completion: true
           output-artifact-directory: signed-opencode-cli
 
+      - name: Prepare signed Windows CLI bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p signed-opencode-cli-bundle
+          cp signed-opencode-cli/*.exe signed-opencode-cli-bundle/opencode.exe
+          cp packages/opencode/dist/opencode-windows-x64/bin/rg.exe signed-opencode-cli-bundle/rg.exe
+
       - name: Upload signed Windows CLI
         uses: actions/upload-artifact@v4
         with:
           name: signed-opencode-windows-cli
-          path: signed-opencode-cli/*.exe
+          path: signed-opencode-cli-bundle/*
           if-no-files-found: error

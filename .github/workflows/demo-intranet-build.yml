@@ -94,23 +94,41 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path packages/desktop/src-tauri/sidecars | Out-Null
-          $candidates = Get-ChildItem -Path "packages/opencode/dist" -Recurse -File |
+          $opencodeCandidates = Get-ChildItem -Path "packages/opencode/dist" -Recurse -File |
             Where-Object {
               ($_.Name -eq "opencode.exe" -or $_.Name -eq "opencode") -and
               $_.FullName -match '[\\\\/]opencode-windows-.*[\\\\/]bin[\\\\/]'
             }
-          $bin = $candidates |
+          $opencode = $opencodeCandidates |
             Sort-Object @{ Expression = {
               if ($_.Name -eq "opencode.exe") { 0 }
               elseif ($_.Name -eq "opencode") { 1 }
               else { 2 }
             }}, FullName |
             Select-Object -First 1
-          if (-not $bin) {
+          if (-not $opencode) {
             Get-ChildItem -Path "packages/opencode/dist" -Recurse | Select-Object -First 200
             throw "Windows sidecar binary not found."
           }
-          Copy-Item $bin.FullName "packages/desktop/src-tauri/sidecars/opencode-cli-x86_64-pc-windows-msvc.exe" -Force
+          Copy-Item $opencode.FullName "packages/desktop/src-tauri/sidecars/opencode-cli-x86_64-pc-windows-msvc.exe" -Force
+
+          $rgCandidates = Get-ChildItem -Path "packages/opencode/dist" -Recurse -File |
+            Where-Object {
+              ($_.Name -eq "rg.exe" -or $_.Name -eq "rg") -and
+              $_.FullName -match '[\\\\/]opencode-windows-.*[\\\\/]bin[\\\\/]'
+            }
+          $rg = $rgCandidates |
+            Sort-Object @{ Expression = {
+              if ($_.Name -eq "rg.exe") { 0 }
+              elseif ($_.Name -eq "rg") { 1 }
+              else { 2 }
+            }}, FullName |
+            Select-Object -First 1
+          if (-not $rg) {
+            Get-ChildItem -Path "packages/opencode/dist" -Recurse | Select-Object -First 200
+            throw "Windows ripgrep sidecar not found."
+          }
+          Copy-Item $rg.FullName "packages/desktop/src-tauri/sidecars/rg-x86_64-pc-windows-msvc.exe" -Force
 
       - name: Build Windows desktop installer
         run: bun run --cwd packages/desktop tauri build --config ./src-tauri/tauri.intranet.conf.json
