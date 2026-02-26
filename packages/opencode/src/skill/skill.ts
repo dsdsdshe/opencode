@@ -13,6 +13,7 @@ import { Bus } from "@/bus"
 import { Session } from "@/session"
 import { Discovery } from "./discovery"
 import { Glob } from "../util/glob"
+import { Builtin } from "./builtin"
 
 export namespace Skill {
   const log = Log.create({ service: "skill" })
@@ -52,6 +53,24 @@ export namespace Skill {
   export const state = Instance.state(async () => {
     const skills: Record<string, Info> = {}
     const dirs = new Set<string>()
+
+    await Promise.all(
+      Builtin.flatMap((skill) =>
+        skill.files.map((file) => {
+          const target = path.join(Global.Path.config, "skills", skill.name, file.path)
+          return Filesystem.exists(target).then((exists) => {
+            if (exists) return
+            return Filesystem.write(target, file.content, "mode" in file ? file.mode : undefined).catch((error) => {
+              log.warn("failed to install builtin skill file", {
+                name: skill.name,
+                file: target,
+                error,
+              })
+            })
+          })
+        }),
+      ),
+    )
 
     const addSkill = async (match: string) => {
       const md = await ConfigMarkdown.parse(match).catch((err) => {

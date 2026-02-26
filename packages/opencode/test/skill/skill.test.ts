@@ -2,8 +2,19 @@ import { test, expect } from "bun:test"
 import { Skill } from "../../src/skill"
 import { Instance } from "../../src/project/instance"
 import { tmpdir } from "../fixture/fixture"
+import { Filesystem } from "../../src/util/filesystem"
 import path from "path"
 import fs from "fs/promises"
+
+const BUILTIN = "skill-creator"
+
+function custom(skills: Awaited<ReturnType<typeof Skill.all>>) {
+  return skills.filter((skill) => skill.name !== BUILTIN)
+}
+
+function customDirs(dirs: string[]) {
+  return dirs.filter((dir) => !dir.includes(path.join("skills", BUILTIN)))
+}
 
 async function createGlobalSkill(homeDir: string) {
   const skillDir = path.join(homeDir, ".claude", "skills", "global-test-skill")
@@ -21,6 +32,30 @@ This skill is loaded from the global home directory.
 `,
   )
 }
+
+test("loads builtin skill by default", async () => {
+  await using tmp = await tmpdir({ git: true })
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const skills = await Skill.all()
+      const builtin = skills.find((skill) => skill.name === BUILTIN)
+      expect(builtin).toBeDefined()
+      expect(builtin!.location).toContain(path.join("opencode", "skills", BUILTIN, "SKILL.md"))
+      const root = path.dirname(builtin!.location)
+      const files = [
+        "agents/openai.yaml",
+        "references/openai_yaml.md",
+        "scripts/init_skill.py",
+        "scripts/generate_openai_yaml.py",
+        "scripts/quick_validate.py",
+      ]
+      const exists = await Promise.all(files.map((file) => Filesystem.exists(path.join(root, file))))
+      expect(exists.every(Boolean)).toBe(true)
+    },
+  })
+})
 
 test("discovers skills from .opencode/skill/ directory", async () => {
   await using tmp = await tmpdir({
@@ -45,7 +80,7 @@ Instructions here.
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const skills = await Skill.all()
+      const skills = custom(await Skill.all())
       expect(skills.length).toBe(1)
       const testSkill = skills.find((s) => s.name === "test-skill")
       expect(testSkill).toBeDefined()
@@ -80,7 +115,7 @@ description: Skill for dirs test.
     await Instance.provide({
       directory: tmp.path,
       fn: async () => {
-        const dirs = await Skill.dirs()
+        const dirs = customDirs(await Skill.dirs())
         const skillDir = path.join(tmp.path, ".opencode", "skill", "dir-skill")
         expect(dirs).toContain(skillDir)
         expect(dirs.length).toBe(1)
@@ -123,7 +158,7 @@ description: Second test skill.
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const skills = await Skill.all()
+      const skills = custom(await Skill.all())
       expect(skills.length).toBe(2)
       expect(skills.find((s) => s.name === "skill-one")).toBeDefined()
       expect(skills.find((s) => s.name === "skill-two")).toBeDefined()
@@ -149,7 +184,7 @@ Just some content without YAML frontmatter.
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const skills = await Skill.all()
+      const skills = custom(await Skill.all())
       expect(skills).toEqual([])
     },
   })
@@ -176,7 +211,7 @@ description: A skill in the .claude/skills directory.
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const skills = await Skill.all()
+      const skills = custom(await Skill.all())
       expect(skills.length).toBe(1)
       const claudeSkill = skills.find((s) => s.name === "claude-skill")
       expect(claudeSkill).toBeDefined()
@@ -196,7 +231,7 @@ test("discovers global skills from ~/.claude/skills/ directory", async () => {
     await Instance.provide({
       directory: tmp.path,
       fn: async () => {
-        const skills = await Skill.all()
+        const skills = custom(await Skill.all())
         expect(skills.length).toBe(1)
         expect(skills[0].name).toBe("global-test-skill")
         expect(skills[0].description).toBe("A global skill from ~/.claude/skills for testing.")
@@ -208,14 +243,15 @@ test("discovers global skills from ~/.claude/skills/ directory", async () => {
   }
 })
 
-test("returns empty array when no skills exist", async () => {
+test("returns only builtin skill when no custom skills exist", async () => {
   await using tmp = await tmpdir({ git: true })
 
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
       const skills = await Skill.all()
-      expect(skills).toEqual([])
+      expect(skills.find((skill) => skill.name === BUILTIN)).toBeDefined()
+      expect(custom(skills)).toEqual([])
     },
   })
 })
@@ -241,7 +277,7 @@ description: A skill in the .agents/skills directory.
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const skills = await Skill.all()
+      const skills = custom(await Skill.all())
       expect(skills.length).toBe(1)
       const agentSkill = skills.find((s) => s.name === "agent-skill")
       expect(agentSkill).toBeDefined()
@@ -275,7 +311,7 @@ This skill is loaded from the global home directory.
     await Instance.provide({
       directory: tmp.path,
       fn: async () => {
-        const skills = await Skill.all()
+        const skills = custom(await Skill.all())
         expect(skills.length).toBe(1)
         expect(skills[0].name).toBe("global-agent-skill")
         expect(skills[0].description).toBe("A global skill from ~/.agents/skills for testing.")
@@ -319,7 +355,7 @@ description: A skill in the .agents/skills directory.
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const skills = await Skill.all()
+      const skills = custom(await Skill.all())
       expect(skills.length).toBe(2)
       expect(skills.find((s) => s.name === "claude-skill")).toBeDefined()
       expect(skills.find((s) => s.name === "agent-skill")).toBeDefined()
@@ -381,7 +417,7 @@ description: A skill in the .opencode/skills directory.
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      const dirs = await Skill.dirs()
+      const dirs = customDirs(await Skill.dirs())
       expect(dirs.length).toBe(4)
     },
   })
