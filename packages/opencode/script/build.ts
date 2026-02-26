@@ -5,10 +5,36 @@ import fs from "fs"
 import path from "path"
 import { fileURLToPath } from "url"
 import solidPlugin from "../node_modules/@opentui/solid/scripts/solid-plugin"
+import { BlobReader, BlobWriter, ZipReader } from "@zip.js/zip.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const dir = path.resolve(__dirname, "..")
+
+const RIPGREP_VERSION = "14.1.1"
+const RIPGREP_PLATFORM = {
+  "arm64-darwin": {
+    platform: "aarch64-apple-darwin",
+    extension: "tar.gz",
+  },
+  "arm64-linux": {
+    platform: "aarch64-unknown-linux-gnu",
+    extension: "tar.gz",
+  },
+  "x64-darwin": {
+    platform: "x86_64-apple-darwin",
+    extension: "tar.gz",
+  },
+  "x64-linux": {
+    platform: "x86_64-unknown-linux-musl",
+    extension: "tar.gz",
+  },
+  "x64-win32": {
+    platform: "x86_64-pc-windows-msvc",
+    extension: "zip",
+  },
+} as const
+const ripgrepCache = new Map<string, Promise<string>>()
 
 process.chdir(dir)
 
@@ -120,6 +146,93 @@ const allTargets: {
   },
 ]
 
+function ripgrepName(os: string) {
+  return os === "win32" ? "rg.exe" : "rg"
+}
+
+function ripgrepID(target: { os: string; arch: "arm64" | "x64" }) {
+  return `${target.arch}-${target.os}` as keyof typeof RIPGREP_PLATFORM
+}
+
+async function ripgrepExtractTar(input: {
+  archive: string
+  output: string
+  name: string
+}) {
+  const dest = path.join(input.output, "extract")
+  await fs.promises.rm(dest, { recursive: true, force: true })
+  await fs.promises.mkdir(dest, { recursive: true })
+  await $`tar -xzf ${input.archive} -C ${dest}`
+
+  const list = await Array.fromAsync(new Bun.Glob(`**/${input.name}`).scan({ cwd: dest, onlyFiles: true }))
+  const file = list[0]
+  if (!file) throw new Error(`ripgrep archive missing ${input.name}: ${input.archive}`)
+
+  const target = path.join(input.output, input.name)
+  await fs.promises.copyFile(path.join(dest, file), target)
+  await fs.promises.chmod(target, 0o755)
+  return target
+}
+
+async function ripgrepExtractZip(input: {
+  archive: string
+  output: string
+  name: string
+}) {
+  const data = await Bun.file(input.archive).arrayBuffer()
+  const zip = new ZipReader(new BlobReader(new Blob([data])))
+  const entries = await zip.getEntries()
+  const entry = entries.find((item) => item.filename.endsWith(input.name))
+  if (!entry) throw new Error(`ripgrep archive missing ${input.name}: ${input.archive}`)
+  if (!entry.getData) throw new Error(`ripgrep entry cannot be extracted: ${entry.filename}`)
+
+  const blob = await entry.getData(new BlobWriter())
+  if (!blob) throw new Error(`failed to extract ${input.name} from ${input.archive}`)
+
+  const target = path.join(input.output, input.name)
+  await Bun.write(target, Buffer.from(await blob.arrayBuffer()))
+  await zip.close()
+  return target
+}
+
+async function ripgrepBinary(target: { os: string; arch: "arm64" | "x64" }) {
+  const id = ripgrepID(target)
+  const config = RIPGREP_PLATFORM[id]
+  if (!config) throw new Error(`Unsupported ripgrep target: ${id}`)
+
+  const key = `${config.platform}.${config.extension}`
+  const cached = ripgrepCache.get(key)
+  if (cached) return cached
+
+  const task = (async () => {
+    const filename = `ripgrep-${RIPGREP_VERSION}-${config.platform}.${config.extension}`
+    const url = `https://github.com/BurntSushi/ripgrep/releases/download/${RIPGREP_VERSION}/${filename}`
+    const root = path.join(dir, "dist", ".tmp", "ripgrep", key)
+    const archive = path.join(root, filename)
+    const name = ripgrepName(target.os)
+    const found = path.join(root, name)
+    const exists = await fs.promises
+      .stat(found)
+      .then((result) => result.isFile())
+      .catch(() => false)
+    if (exists) return found
+
+    await fs.promises.rm(root, { recursive: true, force: true })
+    await fs.promises.mkdir(root, { recursive: true })
+
+    const response = await fetch(url)
+    if (!response.ok) throw new Error(`failed to download ripgrep: ${url} (${response.status})`)
+    await Bun.write(archive, Buffer.from(await response.arrayBuffer()))
+
+    if (config.extension === "tar.gz") {
+      return ripgrepExtractTar({ archive, output: root, name })
+    }
+    return ripgrepExtractZip({ archive, output: root, name })
+  })()
+  ripgrepCache.set(key, task)
+  return task
+}
+
 if (abiFlag && !allTargets.some((item) => item.abi === abiFlag)) {
   throw new Error(`Unsupported abi: ${abiFlag}`)
 }
@@ -208,6 +321,12 @@ for (const item of targets) {
       OPENCODE_LIBC: item.os === "linux" ? `'${item.abi ?? "glibc"}'` : "",
     },
   })
+
+  const rg = await ripgrepBinary(item)
+  const rgName = ripgrepName(item.os)
+  const rgTarget = `dist/${name}/bin/${rgName}`
+  await fs.promises.copyFile(rg, rgTarget)
+  if (item.os !== "win32") await fs.promises.chmod(rgTarget, 0o755)
 
   await $`rm -rf ./dist/${name}/bin/tui`
   await Bun.file(`dist/${name}/package.json`).write(

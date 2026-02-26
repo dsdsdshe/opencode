@@ -124,6 +124,10 @@ export namespace Ripgrep {
   )
 
   const state = lazy(async () => {
+    const local = path.join(path.dirname(process.execPath), "rg" + (process.platform === "win32" ? ".exe" : ""))
+    const localStat = await fs.stat(local).catch(() => undefined)
+    if (localStat?.isFile()) return { filepath: local }
+
     const system = Bun.which("rg")
     if (system) {
       const stat = await fs.stat(system).catch(() => undefined)

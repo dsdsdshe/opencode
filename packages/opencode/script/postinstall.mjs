@@ -62,38 +62,18 @@ function findBinary() {
       throw new Error(`Binary not found at ${binaryPath}`)
     }
 
-    return { binaryPath, binaryName }
+    return { binaryPath, binaryName, packageDir }
   } catch (error) {
     throw new Error(`Could not find package ${packageName}: ${error.message}`)
   }
 }
 
-function prepareBinDirectory(binaryName) {
-  const binDir = path.join(__dirname, "bin")
-  const targetPath = path.join(binDir, binaryName)
-
-  // Ensure bin directory exists
-  if (!fs.existsSync(binDir)) {
-    fs.mkdirSync(binDir, { recursive: true })
-  }
-
-  // Remove existing binary/symlink if it exists
-  if (fs.existsSync(targetPath)) {
-    fs.unlinkSync(targetPath)
-  }
-
-  return { binDir, targetPath }
-}
-
-function symlinkBinary(sourcePath, binaryName) {
-  const { targetPath } = prepareBinDirectory(binaryName)
-
-  fs.symlinkSync(sourcePath, targetPath)
-  console.log(`opencode binary symlinked: ${targetPath} -> ${sourcePath}`)
-
-  // Verify the file exists after operation
-  if (!fs.existsSync(targetPath)) {
-    throw new Error(`Failed to symlink binary to ${targetPath}`)
+function linkOrCopy(source, target) {
+  if (fs.existsSync(target)) fs.unlinkSync(target)
+  try {
+    fs.linkSync(source, target)
+  } catch {
+    fs.copyFileSync(source, target)
   }
 }
 
@@ -108,15 +88,17 @@ async function main() {
 
     // On non-Windows platforms, just verify the binary package exists
     // Don't replace the wrapper script - it handles binary execution
-    const { binaryPath } = findBinary()
+    const { binaryPath, packageDir } = findBinary()
     const target = path.join(__dirname, "bin", ".opencode")
-    if (fs.existsSync(target)) fs.unlinkSync(target)
-    try {
-      fs.linkSync(binaryPath, target)
-    } catch {
-      fs.copyFileSync(binaryPath, target)
-    }
+    linkOrCopy(binaryPath, target)
     fs.chmodSync(target, 0o755)
+
+    const rgSource = path.join(packageDir, "bin", "rg")
+    if (fs.existsSync(rgSource)) {
+      const rgTarget = path.join(__dirname, "bin", "rg")
+      linkOrCopy(rgSource, rgTarget)
+      fs.chmodSync(rgTarget, 0o755)
+    }
   } catch (error) {
     console.error("Failed to setup opencode binary:", error.message)
     process.exit(1)
