@@ -21,6 +21,7 @@ Package contents:
 - `rg-glibc` (ripgrep sidecar for glibc path)
 - `rg-musl` (ripgrep sidecar for musl path)
 - `opencode.json`
+- `uv-python.md`
 - `install.sh`
 
 Install:
@@ -47,6 +48,7 @@ Package contents:
 
 - `OpenCode-Setup.exe` (NSIS installer)
 - `opencode.json`
+- `uv-python.md`
 - `install.ps1`
 - `install.cmd`
 
@@ -75,6 +77,7 @@ Package contents:
 - `opencode.exe` (Windows CLI binary)
 - `rg.exe` (ripgrep sidecar)
 - `opencode.json`
+- `uv-python.md`
 - `install.ps1`
 - `install.cmd`
 

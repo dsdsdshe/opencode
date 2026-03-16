@@ -74,6 +74,7 @@ jobs:
           cp out/linux-bin/rg-glibc out/linux/rg-glibc
           cp out/linux-bin/rg-musl out/linux/rg-musl
           cp demo/intranet/opencode.json out/linux/opencode.json
+          cp demo/intranet/uv-python.md out/linux/uv-python.md
           cp demo/intranet/linux/install.sh out/linux/install.sh
           cp demo/intranet/README.md out/linux/README.md
           chmod +x out/linux/opencode-glibc out/linux/opencode-musl out/linux/rg-glibc out/linux/rg-musl out/linux/install.sh
@@ -144,6 +145,7 @@ jobs:
           Copy-Item $rg.FullName "out/windows-cli/rg.exe" -Force
 
           Copy-Item "demo/intranet/opencode.json" "out/windows-cli/opencode.json" -Force
+          Copy-Item "demo/intranet/uv-python.md" "out/windows-cli/uv-python.md" -Force
           Copy-Item "demo/intranet/windows-cli/install.ps1" "out/windows-cli/install.ps1" -Force
           Copy-Item "demo/intranet/windows-cli/install.cmd" "out/windows-cli/install.cmd" -Force
           Copy-Item "demo/intranet/README.md" "out/windows-cli/README.md" -Force
@@ -227,6 +229,7 @@ jobs:
           if (-not $installer) { throw "Windows installer not found." }
           Copy-Item $installer.FullName "out/windows/OpenCode-Setup.exe" -Force
           Copy-Item "demo/intranet/opencode.json" "out/windows/opencode.json" -Force
+          Copy-Item "demo/intranet/uv-python.md" "out/windows/uv-python.md" -Force
           Copy-Item "demo/intranet/windows/install.ps1" "out/windows/install.ps1" -Force
           Copy-Item "demo/intranet/windows/install.cmd" "out/windows/install.cmd" -Force
           Copy-Item "demo/intranet/README.md" "out/windows/README.md" -Force
