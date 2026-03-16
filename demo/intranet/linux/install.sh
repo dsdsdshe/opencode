@@ -8,6 +8,17 @@ SOURCE_BIN_LEGACY="$ROOT/opencode"
 SOURCE_RG_GLIBC="$ROOT/rg-glibc"
 SOURCE_RG_MUSL="$ROOT/rg-musl"
 SOURCE_CONFIG="$ROOT/opencode.json"
+API_KEY_PLACEHOLDER="__OPENCODE_INTRANET_API_KEY__"
+API_KEY_INPUT="${OPENCODE_INTRANET_API_KEY:-}"
+
+if [ "${1:-}" = "--api-key" ]; then
+  if [ $# -lt 2 ]; then
+    echo "Missing value for --api-key" >&2
+    exit 1
+  fi
+  API_KEY_INPUT="${2:-}"
+  shift 2
+fi
 
 if [ ! -f "$SOURCE_BIN_GLIBC" ] && [ ! -f "$SOURCE_BIN_MUSL" ] && [ ! -f "$SOURCE_BIN_LEGACY" ]; then
   echo "Missing Linux binary in package."
@@ -27,6 +38,7 @@ BIN_DIR="$HOME/.local/bin"
 APP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/opencode-demo"
 CFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode-demo"
 RUNTIME_DIR="$APP_DIR/runtime"
+CFG_PATH="$CFG_DIR/opencode.json"
 
 mkdir -p \
   "$BIN_DIR" \
@@ -53,7 +65,47 @@ fi
 if [ -f "$SOURCE_RG_MUSL" ]; then
   install -m 755 "$SOURCE_RG_MUSL" "$APP_DIR/rg-musl"
 fi
-install -m 644 "$SOURCE_CONFIG" "$CFG_DIR/opencode.json"
+
+prompt_api_key() {
+  if [ -n "$API_KEY_INPUT" ]; then
+    return
+  fi
+
+  if [ ! -t 0 ]; then
+    echo "Missing API key. Re-run with OPENCODE_INTRANET_API_KEY=... or --api-key <key>."
+    exit 1
+  fi
+
+  while [ -z "$API_KEY_INPUT" ]; do
+    printf "Enter intranet API key: " >&2
+    stty -echo
+    IFS= read -r API_KEY_INPUT
+    stty echo
+    printf "\n" >&2
+    if [ -z "$API_KEY_INPUT" ]; then
+      echo "API key is required." >&2
+    fi
+  done
+}
+
+write_config() {
+  if printf '%s' "$API_KEY_INPUT" | grep -q '[[:cntrl:]]'; then
+    echo "API key cannot contain control characters." >&2
+    exit 1
+  fi
+
+  local escaped="$API_KEY_INPUT"
+  escaped=${escaped//\\/\\\\}
+  escaped=${escaped//\"/\\\"}
+  escaped=${escaped//&/\\&}
+  escaped=${escaped//|/\\|}
+
+  sed "s|$API_KEY_PLACEHOLDER|$escaped|g" "$SOURCE_CONFIG" >"$CFG_PATH"
+  chmod 644 "$CFG_PATH"
+}
+
+prompt_api_key
+write_config
 
 cat >"$BIN_DIR/opencode" <<'EOF'
 #!/usr/bin/env bash
@@ -170,7 +222,7 @@ EOF
 chmod 755 "$BIN_DIR/opencode"
 
 echo "Installed OpenCode demo launcher to: $BIN_DIR/opencode"
-echo "Config file: $CFG_DIR/opencode.json"
+echo "Config file: $CFG_PATH"
 echo
 echo "Run with: opencode"
 echo "If 'opencode' is not found, add this to your shell profile:"

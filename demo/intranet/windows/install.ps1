@@ -1,8 +1,56 @@
 param(
-  [string]$InstallerPath = ""
+  [string]$InstallerPath = "",
+  [string]$ApiKey = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+function Get-PlainText {
+  param([Security.SecureString]$Value)
+
+  $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Value)
+  try {
+    return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+  }
+  finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+  }
+}
+
+function Resolve-ApiKey {
+  param([string]$CurrentValue)
+
+  if ($CurrentValue) {
+    return $CurrentValue
+  }
+
+  if ($env:OPENCODE_INTRANET_API_KEY) {
+    return $env:OPENCODE_INTRANET_API_KEY
+  }
+
+  while ($true) {
+    $secure = Read-Host "Enter intranet API key" -AsSecureString
+    $plain = Get-PlainText -Value $secure
+    if ($plain) {
+      return $plain
+    }
+    Write-Host "API key is required."
+  }
+}
+
+function Write-Config {
+  param(
+    [string]$Source,
+    [string]$Destination,
+    [string]$ApiKeyValue
+  )
+
+  $json = Get-Content -LiteralPath $Source -Raw | ConvertFrom-Json
+  $json.provider."internal-vllm".options.apiKey = $ApiKeyValue
+  $next = $json | ConvertTo-Json -Depth 100
+  $encoding = [System.Text.UTF8Encoding]::new($false)
+  [System.IO.File]::WriteAllText($Destination, $next, $encoding)
+}
 
 function Resolve-Installer {
   param([string]$GivenPath)
@@ -60,8 +108,9 @@ if ($code -ne 0) {
 $baseDir = Join-Path $env:LOCALAPPDATA "opencode-demo"
 $cfgDir = $baseDir
 $cfgPath = Join-Path $cfgDir "opencode.json"
+$ApiKey = Resolve-ApiKey -CurrentValue $ApiKey
 New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null
-Copy-Item -Path $cfgSource -Destination $cfgPath -Force
+Write-Config -Source $cfgSource -Destination $cfgPath -ApiKeyValue $ApiKey
 
 $runtimeDir = Join-Path $baseDir "runtime"
 $xdgConfig = Join-Path $runtimeDir "xdg-config"

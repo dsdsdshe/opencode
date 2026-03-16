@@ -13,7 +13,7 @@
       "env": [],
       "options": {
         "baseURL": "http://10.90.79.111:8000/v1",
-        "apiKey": "internal"
+        "apiKey": "__OPENCODE_INTRANET_API_KEY__"
       },
       "models": {
         "MiniMaxAI/MiniMax-M2.5": {

@@ -1,8 +1,56 @@
 param(
-  [string]$RootPath = ""
+  [string]$RootPath = "",
+  [string]$ApiKey = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+function Get-PlainText {
+  param([Security.SecureString]$Value)
+
+  $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Value)
+  try {
+    return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+  }
+  finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+  }
+}
+
+function Resolve-ApiKey {
+  param([string]$CurrentValue)
+
+  if ($CurrentValue) {
+    return $CurrentValue
+  }
+
+  if ($env:OPENCODE_INTRANET_API_KEY) {
+    return $env:OPENCODE_INTRANET_API_KEY
+  }
+
+  while ($true) {
+    $secure = Read-Host "Enter intranet API key" -AsSecureString
+    $plain = Get-PlainText -Value $secure
+    if ($plain) {
+      return $plain
+    }
+    Write-Host "API key is required."
+  }
+}
+
+function Write-Config {
+  param(
+    [string]$Source,
+    [string]$Destination,
+    [string]$ApiKeyValue
+  )
+
+  $json = Get-Content -LiteralPath $Source -Raw | ConvertFrom-Json
+  $json.provider."internal-vllm".options.apiKey = $ApiKeyValue
+  $next = $json | ConvertTo-Json -Depth 100
+  $encoding = [System.Text.UTF8Encoding]::new($false)
+  [System.IO.File]::WriteAllText($Destination, $next, $encoding)
+}
 
 function Resolve-Root {
   param([string]$GivenPath)
@@ -46,10 +94,12 @@ New-Item -ItemType Directory -Force -Path (Join-Path $runtimeDir "xdg-state") | 
 New-Item -ItemType Directory -Force -Path (Join-Path $runtimeDir "home") | Out-Null
 New-Item -ItemType Directory -Force -Path $runtimeBinDir | Out-Null
 
+$ApiKey = Resolve-ApiKey -CurrentValue $ApiKey
+
 Copy-Item -LiteralPath $srcExe -Destination (Join-Path $binDir "opencode.exe") -Force
 Copy-Item -LiteralPath $srcRg -Destination (Join-Path $binDir "rg.exe") -Force
 Copy-Item -LiteralPath $srcRg -Destination (Join-Path $runtimeBinDir "rg.exe") -Force
-Copy-Item -LiteralPath $srcCfg -Destination $cfgPath -Force
+Write-Config -Source $srcCfg -Destination $cfgPath -ApiKeyValue $ApiKey
 
 $launcher = @'
 @echo off
