@@ -29,6 +29,7 @@
       }
     }
   },
+  "instructions": ["uv-python.md"],
   "security": {
     "safe_mode": true,
     "allowed_hosts": ["__OPENCODE_INTRANET_HOST__:4000"],

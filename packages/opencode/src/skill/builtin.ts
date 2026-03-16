@@ -4,7 +4,6 @@ import SKILL_CREATOR_OPENAI_YAML_REFERENCE from "./builtin/skill-creator/referen
 import SKILL_CREATOR_GENERATE from "./builtin/skill-creator/scripts/generate_openai_yaml.py.txt"
 import SKILL_CREATOR_INIT from "./builtin/skill-creator/scripts/init_skill.py.txt"
 import SKILL_CREATOR_VALIDATE from "./builtin/skill-creator/scripts/quick_validate.py.txt"
-import UV_PYTHON from "./builtin/uv-python/SKILL.md.txt"
 
 export const Builtin = [
   {
@@ -36,15 +35,6 @@ export const Builtin = [
         path: "scripts/quick_validate.py",
         content: SKILL_CREATOR_VALIDATE,
         mode: 0o755,
-      },
-    ],
-  },
-  {
-    name: "uv-python",
-    files: [
-      {
-        path: "SKILL.md",
-        content: UV_PYTHON,
       },
     ],
   },

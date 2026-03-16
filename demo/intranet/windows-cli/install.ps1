@@ -150,6 +150,11 @@ Copy-Item -LiteralPath $srcRg -Destination (Join-Path $binDir "rg.exe") -Force
 Copy-Item -LiteralPath $srcRg -Destination (Join-Path $runtimeBinDir "rg.exe") -Force
 Write-Config -Source $srcCfg -Destination $cfgPath -ApiKeyValue $ApiKey -ServerHostValue $ServerHost
 
+$srcInstructions = Join-Path $root "uv-python.md"
+if (Test-Path -LiteralPath $srcInstructions -PathType Leaf) {
+  Copy-Item -LiteralPath $srcInstructions -Destination (Join-Path $baseDir "uv-python.md") -Force
+}
+
 $launcher = @'
 @echo off
 setlocal
@@ -163,6 +168,7 @@ if not exist "%BIN%" (
 )
 
 set "OPENCODE_CONFIG=%BASE%\opencode.json"
+set "OPENCODE_CONFIG_DIR=%BASE%"
 set "OPENCODE_DISABLE_PROJECT_CONFIG=1"
 set "OPENCODE_SAFE_MODE=1"
 set "OPENCODE_ALLOWED_HOSTS=__OPENCODE_INTRANET_HOST__:4000"

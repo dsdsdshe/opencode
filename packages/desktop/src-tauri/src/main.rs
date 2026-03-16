@@ -84,6 +84,7 @@ fn configure_intranet_profile() {
         .filter(|hosts| !hosts.is_empty());
 
     set("OPENCODE_CONFIG", config.to_string_lossy().to_string());
+    set("OPENCODE_CONFIG_DIR", base.to_string_lossy().to_string());
     set("OPENCODE_DISABLE_PROJECT_CONFIG", "1".to_string());
     set("OPENCODE_SAFE_MODE", "1".to_string());
     if let Some(hosts) = allowed_hosts {

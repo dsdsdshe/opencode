@@ -1,11 +1,6 @@
----
-name: uv-python
-description: Use uv as the Python package manager and runner. Trigger whenever Python code needs to be executed, packages need to be installed, virtual environments need to be created, or any Python tooling is involved. This includes running scripts, installing dependencies, managing projects, and using CLI tools written in Python. Also trigger when uv itself needs to be installed or configured.
----
-
 # Using Python via uv
 
-This environment uses [uv](https://docs.astral.sh/uv/) as the standard way to manage and run Python. Do not invoke `python`, `python3`, `pip`, or `pip3` directly — use `uv` instead.
+This environment uses uv as the standard way to manage and run Python. Do not invoke `python`, `python3`, `pip`, or `pip3` directly — use `uv` instead.
 
 ## Setting Up uv
 
@@ -71,28 +66,13 @@ uv python install 3.11
 
 ## Running Scripts
 
-Run a Python script:
-
 ```bash
 uv run script.py
-```
-
-Run a script that needs extra packages (without pre-installing them):
-
-```bash
 uv run --with requests --with pandas script.py
-```
-
-Run a module:
-
-```bash
 uv run -m pytest
-uv run -m http.server 8080
 ```
 
 ## Installing Packages
-
-Install into the current environment:
 
 ```bash
 uv pip install requests pandas
@@ -101,37 +81,22 @@ uv pip install -r requirements.txt
 
 ## Running CLI Tools
 
-Use `uvx` to run Python CLI tools without installing them globally:
-
 ```bash
 uvx ruff check .
 uvx black .
-uvx mypy script.py
 ```
 
 ## Project Management
 
-Initialize a new Python project:
-
 ```bash
 uv init my-project
-```
-
-Add dependencies to an existing project:
-
-```bash
 uv add requests pandas
-```
-
-Sync project dependencies:
-
-```bash
 uv sync
 ```
 
 ## Creating Virtual Environments
 
 ```bash
-uv venv            # creates .venv in current directory
-uv venv myenv      # creates named venv
+uv venv
+uv venv myenv
 ```

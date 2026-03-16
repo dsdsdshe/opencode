@@ -161,6 +161,11 @@ $ApiKey = Resolve-ApiKey -CurrentValue $ApiKey
 New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null
 Write-Config -Source $cfgSource -Destination $cfgPath -ApiKeyValue $ApiKey -ServerHostValue $ServerHost
 
+$srcInstructions = Join-Path $scriptRoot "uv-python.md"
+if (Test-Path -LiteralPath $srcInstructions -PathType Leaf) {
+  Copy-Item -LiteralPath $srcInstructions -Destination (Join-Path $cfgDir "uv-python.md") -Force
+}
+
 $runtimeDir = Join-Path $baseDir "runtime"
 $xdgConfig = Join-Path $runtimeDir "xdg-config"
 $xdgData = Join-Path $runtimeDir "xdg-data"

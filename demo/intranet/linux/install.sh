@@ -170,7 +170,8 @@ write_launcher() {
 #!/usr/bin/env bash
 set -euo pipefail
 
-CFG="${XDG_CONFIG_HOME:-$HOME/.config}/opencode-demo/opencode.json"
+CFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode-demo"
+CFG="$CFG_DIR/opencode.json"
 BIN_GLIBC="${XDG_DATA_HOME:-$HOME/.local/share}/opencode-demo/opencode-glibc"
 BIN_MUSL="${XDG_DATA_HOME:-$HOME/.local/share}/opencode-demo/opencode-musl"
 BIN_LEGACY="${XDG_DATA_HOME:-$HOME/.local/share}/opencode-demo/opencode-real"
@@ -180,6 +181,7 @@ RG_LINK="${XDG_DATA_HOME:-$HOME/.local/share}/opencode-demo/rg"
 RUNTIME_BASE="${XDG_DATA_HOME:-$HOME/.local/share}/opencode-demo/runtime"
 
 export OPENCODE_CONFIG="$CFG"
+export OPENCODE_CONFIG_DIR="$CFG_DIR"
 export OPENCODE_DISABLE_PROJECT_CONFIG=1
 export OPENCODE_SAFE_MODE=1
 export OPENCODE_ALLOWED_HOSTS=__OPENCODE_INTRANET_HOST__:4000
@@ -288,9 +290,17 @@ EOF
   mv "$tmp" "$BIN_DIR/opencode"
 }
 
+copy_instructions() {
+  local src="$ROOT/uv-python.md"
+  if [ -f "$src" ]; then
+    install -m 644 "$src" "$CFG_DIR/uv-python.md"
+  fi
+}
+
 prompt_server_host
 prompt_api_key
 write_config
+copy_instructions
 write_launcher
 chmod 755 "$BIN_DIR/opencode"
 
