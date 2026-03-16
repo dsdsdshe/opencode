@@ -55,21 +55,21 @@ uv python install 3.11
 
 | Instead of | Use |
 |---|---|
-| `python script.py` | `uv run script.py` |
-| `python3 script.py` | `uv run script.py` |
+| `python script.py` | `uv run --python 3.11 script.py` |
+| `python3 script.py` | `uv run --python 3.11 script.py` |
 | `pip install package` | `uv pip install package` |
 | `pip3 install package` | `uv pip install package` |
-| `python -m module` | `uv run -m module` |
-| `python -m venv .venv` | `uv venv` |
+| `python -m module` | `uv run --python 3.11 -m module` |
+| `python -m venv .venv` | `uv venv --python 3.11` |
 | `pip install -r requirements.txt` | `uv pip install -r requirements.txt` |
 | `pipx run tool` | `uvx tool` |
 
 ## Running Scripts
 
 ```bash
-uv run script.py
-uv run --with requests --with pandas script.py
-uv run -m pytest
+uv run --python 3.11 script.py
+uv run --python 3.11 --with requests --with pandas script.py
+uv run --python 3.11 -m pytest
 ```
 
 ## Installing Packages
@@ -89,7 +89,7 @@ uvx black .
 ## Project Management
 
 ```bash
-uv init my-project
+uv init --python 3.11 my-project
 uv add requests pandas
 uv sync
 ```
@@ -97,6 +97,6 @@ uv sync
 ## Creating Virtual Environments
 
 ```bash
-uv venv
-uv venv myenv
+uv venv --python 3.11
+uv venv --python 3.11 myenv
 ```
