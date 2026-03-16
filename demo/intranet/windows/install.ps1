@@ -1,6 +1,7 @@
 param(
   [string]$InstallerPath = "",
-  [string]$ApiKey = ""
+  [string]$ApiKey = "",
+  [string]$ServerHost = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,15 +39,62 @@ function Resolve-ApiKey {
   }
 }
 
+function Normalize-ServerHost {
+  param([string]$Value)
+
+  if (-not $Value) {
+    return ""
+  }
+
+  $next = $Value.Trim()
+  if ($next -match '^https?://') {
+    $next = ([Uri]$next).Host
+  }
+  $next = $next.TrimEnd("/")
+  if ($next.EndsWith(":4000")) {
+    $next = $next.Substring(0, $next.Length - 5)
+  }
+  return $next
+}
+
+function Resolve-ServerHost {
+  param([string]$CurrentValue)
+
+  $next = Normalize-ServerHost -Value $CurrentValue
+  if (-not $next -and $env:OPENCODE_INTRANET_HOST) {
+    $next = Normalize-ServerHost -Value $env:OPENCODE_INTRANET_HOST
+  }
+  if ($next -and $next -match '^[A-Za-z0-9.-]+$') {
+    return $next
+  }
+  if ($next) {
+    throw "Server IP/hostname must contain only letters, digits, dots, or hyphens."
+  }
+
+  while ($true) {
+    $input = Read-Host "Enter intranet server IP or hostname"
+    $next = Normalize-ServerHost -Value $input
+    if ($next -and $next -match '^[A-Za-z0-9.-]+$') {
+      return $next
+    }
+    Write-Host "Server IP/hostname must contain only letters, digits, dots, or hyphens."
+  }
+}
+
 function Write-Config {
   param(
     [string]$Source,
     [string]$Destination,
-    [string]$ApiKeyValue
+    [string]$ApiKeyValue,
+    [string]$ServerHostValue
   )
 
   $json = Get-Content -LiteralPath $Source -Raw | ConvertFrom-Json
+  $baseUrl = "http://${ServerHostValue}:4000/v1"
   $json.provider."internal-vllm".options.apiKey = $ApiKeyValue
+  $json.provider."internal-vllm".api = $baseUrl
+  $json.provider."internal-vllm".options.baseURL = $baseUrl
+  $json.security.allowed_hosts = @("${ServerHostValue}:4000")
   $next = $json | ConvertTo-Json -Depth 100
   $encoding = [System.Text.UTF8Encoding]::new($false)
   [System.IO.File]::WriteAllText($Destination, $next, $encoding)
@@ -108,9 +156,10 @@ if ($code -ne 0) {
 $baseDir = Join-Path $env:LOCALAPPDATA "opencode-demo"
 $cfgDir = $baseDir
 $cfgPath = Join-Path $cfgDir "opencode.json"
+$ServerHost = Resolve-ServerHost -CurrentValue $ServerHost
 $ApiKey = Resolve-ApiKey -CurrentValue $ApiKey
 New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null
-Write-Config -Source $cfgSource -Destination $cfgPath -ApiKeyValue $ApiKey
+Write-Config -Source $cfgSource -Destination $cfgPath -ApiKeyValue $ApiKey -ServerHostValue $ServerHost
 
 $runtimeDir = Join-Path $baseDir "runtime"
 $xdgConfig = Join-Path $runtimeDir "xdg-config"

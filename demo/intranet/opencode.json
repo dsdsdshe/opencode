@@ -1,29 +1,29 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "enabled_providers": ["internal-vllm"],
-  "model": "internal-vllm/MiniMaxAI/MiniMax-M2.5",
-  "small_model": "internal-vllm/MiniMaxAI/MiniMax-M2.5",
+  "model": "internal-vllm/hiq-llm",
+  "small_model": "internal-vllm/hiq-llm",
   "share": "disabled",
   "autoupdate": false,
   "provider": {
     "internal-vllm": {
       "name": "Internal vLLM",
       "npm": "@ai-sdk/openai-compatible",
-      "api": "http://10.90.79.111:8000/v1",
+      "api": "http://__OPENCODE_INTRANET_HOST__:4000/v1",
       "env": [],
       "options": {
-        "baseURL": "http://10.90.79.111:8000/v1",
+        "baseURL": "http://__OPENCODE_INTRANET_HOST__:4000/v1",
         "apiKey": "__OPENCODE_INTRANET_API_KEY__"
       },
       "models": {
-        "MiniMaxAI/MiniMax-M2.5": {
-          "name": "MiniMax M2.5",
+        "hiq-llm": {
+          "name": "hiq-llm",
           "tool_call": true,
           "temperature": true,
           "reasoning": true,
           "limit": {
-            "context": 196608,
-            "output": 128000
+            "context": 262144,
+            "output": 262144
           }
         }
       }
@@ -31,7 +31,7 @@
   },
   "security": {
     "safe_mode": true,
-    "allowed_hosts": ["10.90.79.111:8000"],
+    "allowed_hosts": ["__OPENCODE_INTRANET_HOST__:4000"],
     "disable_dynamic_installs": true,
     "disable_remote_instructions": true,
     "disable_remote_mcp": true

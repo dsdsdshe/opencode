@@ -71,10 +71,24 @@ fn configure_intranet_profile() {
         unsafe { env::set_var(key, value) };
     };
 
+    let allowed_hosts = fs::read_to_string(&config)
+        .ok()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .and_then(|json| json.get("security")?.get("allowed_hosts")?.as_array().cloned())
+        .map(|hosts| {
+            hosts
+                .into_iter()
+                .filter_map(|item| item.as_str().map(str::to_string))
+                .collect::<Vec<_>>()
+        })
+        .filter(|hosts| !hosts.is_empty());
+
     set("OPENCODE_CONFIG", config.to_string_lossy().to_string());
     set("OPENCODE_DISABLE_PROJECT_CONFIG", "1".to_string());
     set("OPENCODE_SAFE_MODE", "1".to_string());
-    set("OPENCODE_ALLOWED_HOSTS", "10.90.79.111:8000".to_string());
+    if let Some(hosts) = allowed_hosts {
+        set("OPENCODE_ALLOWED_HOSTS", hosts.join(","));
+    }
     set("OPENCODE_DISABLE_MODELS_FETCH", "1".to_string());
     set("OPENCODE_DISABLE_DYNAMIC_INSTALLS", "1".to_string());
     set("OPENCODE_DISABLE_REMOTE_INSTRUCTIONS", "1".to_string());

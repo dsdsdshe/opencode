@@ -1,6 +1,7 @@
 param(
   [string]$RootPath = "",
-  [string]$ApiKey = ""
+  [string]$ApiKey = "",
+  [string]$ServerHost = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,15 +39,62 @@ function Resolve-ApiKey {
   }
 }
 
+function Normalize-ServerHost {
+  param([string]$Value)
+
+  if (-not $Value) {
+    return ""
+  }
+
+  $next = $Value.Trim()
+  if ($next -match '^https?://') {
+    $next = ([Uri]$next).Host
+  }
+  $next = $next.TrimEnd("/")
+  if ($next.EndsWith(":4000")) {
+    $next = $next.Substring(0, $next.Length - 5)
+  }
+  return $next
+}
+
+function Resolve-ServerHost {
+  param([string]$CurrentValue)
+
+  $next = Normalize-ServerHost -Value $CurrentValue
+  if (-not $next -and $env:OPENCODE_INTRANET_HOST) {
+    $next = Normalize-ServerHost -Value $env:OPENCODE_INTRANET_HOST
+  }
+  if ($next -and $next -match '^[A-Za-z0-9.-]+$') {
+    return $next
+  }
+  if ($next) {
+    throw "Server IP/hostname must contain only letters, digits, dots, or hyphens."
+  }
+
+  while ($true) {
+    $input = Read-Host "Enter intranet server IP or hostname"
+    $next = Normalize-ServerHost -Value $input
+    if ($next -and $next -match '^[A-Za-z0-9.-]+$') {
+      return $next
+    }
+    Write-Host "Server IP/hostname must contain only letters, digits, dots, or hyphens."
+  }
+}
+
 function Write-Config {
   param(
     [string]$Source,
     [string]$Destination,
-    [string]$ApiKeyValue
+    [string]$ApiKeyValue,
+    [string]$ServerHostValue
   )
 
   $json = Get-Content -LiteralPath $Source -Raw | ConvertFrom-Json
+  $baseUrl = "http://${ServerHostValue}:4000/v1"
   $json.provider."internal-vllm".options.apiKey = $ApiKeyValue
+  $json.provider."internal-vllm".api = $baseUrl
+  $json.provider."internal-vllm".options.baseURL = $baseUrl
+  $json.security.allowed_hosts = @("${ServerHostValue}:4000")
   $next = $json | ConvertTo-Json -Depth 100
   $encoding = [System.Text.UTF8Encoding]::new($false)
   [System.IO.File]::WriteAllText($Destination, $next, $encoding)
@@ -94,12 +142,13 @@ New-Item -ItemType Directory -Force -Path (Join-Path $runtimeDir "xdg-state") | 
 New-Item -ItemType Directory -Force -Path (Join-Path $runtimeDir "home") | Out-Null
 New-Item -ItemType Directory -Force -Path $runtimeBinDir | Out-Null
 
+$ServerHost = Resolve-ServerHost -CurrentValue $ServerHost
 $ApiKey = Resolve-ApiKey -CurrentValue $ApiKey
 
 Copy-Item -LiteralPath $srcExe -Destination (Join-Path $binDir "opencode.exe") -Force
 Copy-Item -LiteralPath $srcRg -Destination (Join-Path $binDir "rg.exe") -Force
 Copy-Item -LiteralPath $srcRg -Destination (Join-Path $runtimeBinDir "rg.exe") -Force
-Write-Config -Source $srcCfg -Destination $cfgPath -ApiKeyValue $ApiKey
+Write-Config -Source $srcCfg -Destination $cfgPath -ApiKeyValue $ApiKey -ServerHostValue $ServerHost
 
 $launcher = @'
 @echo off
@@ -116,7 +165,7 @@ if not exist "%BIN%" (
 set "OPENCODE_CONFIG=%BASE%\opencode.json"
 set "OPENCODE_DISABLE_PROJECT_CONFIG=1"
 set "OPENCODE_SAFE_MODE=1"
-set "OPENCODE_ALLOWED_HOSTS=10.90.79.111:8000"
+set "OPENCODE_ALLOWED_HOSTS=__OPENCODE_INTRANET_HOST__:4000"
 set "OPENCODE_DISABLE_MODELS_FETCH=1"
 set "OPENCODE_DISABLE_DYNAMIC_INSTALLS=1"
 set "OPENCODE_DISABLE_REMOTE_INSTRUCTIONS=1"
@@ -131,14 +180,14 @@ set "http_proxy="
 set "https_proxy="
 set "all_proxy="
 if defined NO_PROXY (
-  set "NO_PROXY=%NO_PROXY%,127.0.0.1,localhost,::1,10.90.79.111,10.90.79.111:8000"
+  set "NO_PROXY=%NO_PROXY%,127.0.0.1,localhost,::1,__OPENCODE_INTRANET_HOST__,__OPENCODE_INTRANET_HOST__:4000"
 ) else (
-  set "NO_PROXY=127.0.0.1,localhost,::1,10.90.79.111,10.90.79.111:8000"
+  set "NO_PROXY=127.0.0.1,localhost,::1,__OPENCODE_INTRANET_HOST__,__OPENCODE_INTRANET_HOST__:4000"
 )
 if defined no_proxy (
-  set "no_proxy=%no_proxy%,127.0.0.1,localhost,::1,10.90.79.111,10.90.79.111:8000"
+  set "no_proxy=%no_proxy%,127.0.0.1,localhost,::1,__OPENCODE_INTRANET_HOST__,__OPENCODE_INTRANET_HOST__:4000"
 ) else (
-  set "no_proxy=127.0.0.1,localhost,::1,10.90.79.111,10.90.79.111:8000"
+  set "no_proxy=127.0.0.1,localhost,::1,__OPENCODE_INTRANET_HOST__,__OPENCODE_INTRANET_HOST__:4000"
 )
 
 set "RUNTIME=%BASE%\runtime"
@@ -152,6 +201,7 @@ set "RUNTIME_BIN=%RUNTIME%\xdg-data\opencode\bin"
 set "PATH=%BIN_DIR%;%RUNTIME_BIN%;%PATH%"
 "%BIN%" %*
 '@
+$launcher = $launcher.Replace("__OPENCODE_INTRANET_HOST__", $ServerHost)
 
 New-Item -ItemType Directory -Force -Path $shimDir | Out-Null
 Set-Content -LiteralPath $shimPath -Value $launcher -NoNewline

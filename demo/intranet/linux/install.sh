@@ -9,16 +9,34 @@ SOURCE_RG_GLIBC="$ROOT/rg-glibc"
 SOURCE_RG_MUSL="$ROOT/rg-musl"
 SOURCE_CONFIG="$ROOT/opencode.json"
 API_KEY_PLACEHOLDER="__OPENCODE_INTRANET_API_KEY__"
+HOST_PLACEHOLDER="__OPENCODE_INTRANET_HOST__"
 API_KEY_INPUT="${OPENCODE_INTRANET_API_KEY:-}"
+SERVER_HOST_INPUT="${OPENCODE_INTRANET_HOST:-}"
 
-if [ "${1:-}" = "--api-key" ]; then
-  if [ $# -lt 2 ]; then
-    echo "Missing value for --api-key" >&2
-    exit 1
-  fi
-  API_KEY_INPUT="${2:-}"
-  shift 2
-fi
+while [ $# -gt 0 ]; do
+  case "${1:-}" in
+    --api-key)
+      if [ $# -lt 2 ]; then
+        echo "Missing value for --api-key" >&2
+        exit 1
+      fi
+      API_KEY_INPUT="${2:-}"
+      shift 2
+      ;;
+    --server-host)
+      if [ $# -lt 2 ]; then
+        echo "Missing value for --server-host" >&2
+        exit 1
+      fi
+      SERVER_HOST_INPUT="${2:-}"
+      shift 2
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      exit 1
+      ;;
+  esac
+done
 
 if [ ! -f "$SOURCE_BIN_GLIBC" ] && [ ! -f "$SOURCE_BIN_MUSL" ] && [ ! -f "$SOURCE_BIN_LEGACY" ]; then
   echo "Missing Linux binary in package."
@@ -88,6 +106,42 @@ prompt_api_key() {
   done
 }
 
+normalize_server_host() {
+  local value="$1"
+  value="${value#http://}"
+  value="${value#https://}"
+  value="${value%%/*}"
+  value="${value%:4000}"
+  printf '%s' "$value"
+}
+
+prompt_server_host() {
+  SERVER_HOST_INPUT="$(normalize_server_host "$SERVER_HOST_INPUT")"
+  if [ -n "$SERVER_HOST_INPUT" ] && printf '%s' "$SERVER_HOST_INPUT" | grep -Eq '^[A-Za-z0-9.-]+$'; then
+    return
+  fi
+
+  if [ -n "$SERVER_HOST_INPUT" ]; then
+    echo "Server IP/hostname must contain only letters, digits, dots, or hyphens." >&2
+    exit 1
+  fi
+
+  if [ ! -t 0 ]; then
+    echo "Missing server IP. Re-run with OPENCODE_INTRANET_HOST=... or --server-host <host>." >&2
+    exit 1
+  fi
+
+  while :; do
+    printf "Enter intranet server IP or hostname: " >&2
+    IFS= read -r SERVER_HOST_INPUT
+    SERVER_HOST_INPUT="$(normalize_server_host "$SERVER_HOST_INPUT")"
+    if printf '%s' "$SERVER_HOST_INPUT" | grep -Eq '^[A-Za-z0-9.-]+$'; then
+      return
+    fi
+    echo "Server IP/hostname must contain only letters, digits, dots, or hyphens." >&2
+  done
+}
+
 write_config() {
   if printf '%s' "$API_KEY_INPUT" | grep -q '[[:cntrl:]]'; then
     echo "API key cannot contain control characters." >&2
@@ -99,15 +153,20 @@ write_config() {
   escaped=${escaped//\"/\\\"}
   escaped=${escaped//&/\\&}
   escaped=${escaped//|/\\|}
+  local host="$SERVER_HOST_INPUT"
+  host=${host//\\/\\\\}
+  host=${host//&/\\&}
+  host=${host//|/\\|}
 
-  sed "s|$API_KEY_PLACEHOLDER|$escaped|g" "$SOURCE_CONFIG" >"$CFG_PATH"
+  sed \
+    -e "s|$API_KEY_PLACEHOLDER|$escaped|g" \
+    -e "s|$HOST_PLACEHOLDER|$host|g" \
+    "$SOURCE_CONFIG" >"$CFG_PATH"
   chmod 644 "$CFG_PATH"
 }
 
-prompt_api_key
-write_config
-
-cat >"$BIN_DIR/opencode" <<'EOF'
+write_launcher() {
+  cat >"$BIN_DIR/opencode" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -123,7 +182,7 @@ RUNTIME_BASE="${XDG_DATA_HOME:-$HOME/.local/share}/opencode-demo/runtime"
 export OPENCODE_CONFIG="$CFG"
 export OPENCODE_DISABLE_PROJECT_CONFIG=1
 export OPENCODE_SAFE_MODE=1
-export OPENCODE_ALLOWED_HOSTS=10.90.79.111:8000
+export OPENCODE_ALLOWED_HOSTS=__OPENCODE_INTRANET_HOST__:4000
 export OPENCODE_DISABLE_MODELS_FETCH=1
 export OPENCODE_DISABLE_DYNAMIC_INSTALLS=1
 export OPENCODE_DISABLE_REMOTE_INSTRUCTIONS=1
@@ -132,8 +191,8 @@ export OPENCODE_DISABLE_AUTOUPDATE=1
 export OPENCODE_DISABLE_DEFAULT_PLUGINS=1
 export OPENCODE_DISABLE_PROXY=1
 unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
-export NO_PROXY="${NO_PROXY:+$NO_PROXY,}127.0.0.1,localhost,::1,10.90.79.111,10.90.79.111:8000"
-export no_proxy="${no_proxy:+$no_proxy,}127.0.0.1,localhost,::1,10.90.79.111,10.90.79.111:8000"
+export NO_PROXY="${NO_PROXY:+$NO_PROXY,}127.0.0.1,localhost,::1,__OPENCODE_INTRANET_HOST__,__OPENCODE_INTRANET_HOST__:4000"
+export no_proxy="${no_proxy:+$no_proxy,}127.0.0.1,localhost,::1,__OPENCODE_INTRANET_HOST__,__OPENCODE_INTRANET_HOST__:4000"
 
 # Isolate OpenCode runtime state from user/global config to prevent accidental policy bypasses.
 export XDG_CONFIG_HOME="$RUNTIME_BASE/xdg-config"
@@ -219,6 +278,20 @@ fi
 exec "$BIN" "$@"
 EOF
 
+  local host="$SERVER_HOST_INPUT"
+  host=${host//\\/\\\\}
+  host=${host//&/\\&}
+  host=${host//|/\\|}
+  local tmp
+  tmp="$(mktemp)"
+  sed "s|$HOST_PLACEHOLDER|$host|g" "$BIN_DIR/opencode" >"$tmp"
+  mv "$tmp" "$BIN_DIR/opencode"
+}
+
+prompt_server_host
+prompt_api_key
+write_config
+write_launcher
 chmod 755 "$BIN_DIR/opencode"
 
 echo "Installed OpenCode demo launcher to: $BIN_DIR/opencode"
