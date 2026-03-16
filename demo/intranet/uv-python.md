@@ -74,6 +74,16 @@ uv run --python 3.11 -m pytest
 
 ## Installing Packages
 
+Before installing packages, ensure a virtual environment exists. If not, create one first:
+
+```bash
+uv venv --python 3.11
+source .venv/bin/activate   # Linux/macOS
+# .venv\Scripts\activate    # Windows
+```
+
+Then install:
+
 ```bash
 uv pip install requests pandas
 uv pip install -r requirements.txt
