@@ -22,8 +22,8 @@
           "temperature": true,
           "reasoning": true,
           "limit": {
-            "context": 262144,
-            "output": 262144
+            "context": 196608,
+            "output": 196608
           }
         }
       }

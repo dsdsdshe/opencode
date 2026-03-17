@@ -81,6 +81,16 @@ function Resolve-ServerHost {
   }
 }
 
+function Resolve-ModelLimit {
+  param([string]$ServerHostValue)
+
+  if ($ServerHostValue -eq "10.90.79.111") {
+    return 262144
+  }
+
+  return 196608
+}
+
 function Write-Config {
   param(
     [string]$Source,
@@ -91,9 +101,12 @@ function Write-Config {
 
   $json = Get-Content -LiteralPath $Source -Raw | ConvertFrom-Json
   $baseUrl = "http://${ServerHostValue}:4000/v1"
+  $limit = Resolve-ModelLimit -ServerHostValue $ServerHostValue
   $json.provider."internal-vllm".options.apiKey = $ApiKeyValue
   $json.provider."internal-vllm".api = $baseUrl
   $json.provider."internal-vllm".options.baseURL = $baseUrl
+  $json.provider."internal-vllm".models."hiq-llm".limit.context = $limit
+  $json.provider."internal-vllm".models."hiq-llm".limit.output = $limit
   $json.security.allowed_hosts = @("${ServerHostValue}:4000")
   $next = $json | ConvertTo-Json -Depth 100
   $encoding = [System.Text.UTF8Encoding]::new($false)

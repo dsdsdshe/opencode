@@ -115,6 +115,15 @@ normalize_server_host() {
   printf '%s' "$value"
 }
 
+resolve_model_limit() {
+  if [ "$1" = "10.90.79.111" ]; then
+    printf '%s' "262144"
+    return
+  fi
+
+  printf '%s' "196608"
+}
+
 prompt_server_host() {
   SERVER_HOST_INPUT="$(normalize_server_host "$SERVER_HOST_INPUT")"
   if [ -n "$SERVER_HOST_INPUT" ] && printf '%s' "$SERVER_HOST_INPUT" | grep -Eq '^[A-Za-z0-9.-]+$'; then
@@ -157,10 +166,14 @@ write_config() {
   host=${host//\\/\\\\}
   host=${host//&/\\&}
   host=${host//|/\\|}
+  local limit
+  limit="$(resolve_model_limit "$SERVER_HOST_INPUT")"
 
   sed \
     -e "s|$API_KEY_PLACEHOLDER|$escaped|g" \
     -e "s|$HOST_PLACEHOLDER|$host|g" \
+    -e "s|\"context\": 196608|\"context\": $limit|g" \
+    -e "s|\"output\": 196608|\"output\": $limit|g" \
     "$SOURCE_CONFIG" >"$CFG_PATH"
   chmod 644 "$CFG_PATH"
 }
