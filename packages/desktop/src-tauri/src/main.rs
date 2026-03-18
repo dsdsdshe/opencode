@@ -138,6 +138,7 @@ fn main() {
         "127.0.0.1".to_string(),
         "localhost".to_string(),
         "::1".to_string(),
+        "uv.tool.huawei.com".to_string(),
     ];
 
     bypass.extend(

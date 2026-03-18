@@ -26,11 +26,11 @@ powershell -ExecutionPolicy ByPass -c "irm http://uv.tool.huawei.com/install.ps1
 
 After installation, create the uv config file with intranet mirrors.
 
-**Linux / macOS** — write to `~/.config/uv/uv.toml`:
+**Linux / macOS** — write to `${XDG_CONFIG_HOME:-$HOME/.config}/uv/uv.toml`:
 
 ```bash
-mkdir -p ~/.config/uv
-cat > ~/.config/uv/uv.toml << 'EOF'
+mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/uv"
+cat > "${XDG_CONFIG_HOME:-$HOME/.config}/uv/uv.toml" << 'EOF'
 python-install-mirror = "http://uv.tool.huawei.com/repository/python-build-standalone/releases/download"
 index-url = "https://mirrors.tools.huawei.com/pypi/simple"
 allow-insecure-host = ["mirrors.tools.huawei.com"]
