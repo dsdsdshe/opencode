@@ -4,6 +4,7 @@ import { type IPty } from "bun-pty"
 import z from "zod"
 import { Identifier } from "../id/id"
 import { Log } from "../util/log"
+import { stripNoProxy } from "../util/proxied"
 import { Instance } from "../project/instance"
 import { lazy } from "@opencode-ai/util/lazy"
 import { Shell } from "@/shell/shell"
@@ -181,13 +182,13 @@ export namespace Pty {
 
     const cwd = input.cwd || Instance.directory
     const shellEnv = await Plugin.trigger("shell.env", { cwd }, { env: {} })
-    const env = {
+    const env = stripNoProxy({
       ...process.env,
       ...input.env,
       ...shellEnv.env,
       TERM: "xterm-256color",
       OPENCODE_TERMINAL: "1",
-    } as Record<string, string>
+    }) as Record<string, string>
 
     if (process.platform === "win32") {
       env.LC_ALL = "C.UTF-8"

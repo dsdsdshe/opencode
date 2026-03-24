@@ -42,7 +42,7 @@ struct ServerReadyData {
     url: String,
     username: Option<String>,
     password: Option<String>,
-    is_sidecar: bool
+    is_sidecar: bool,
 }
 
 #[derive(Clone, Copy, serde::Serialize, specta::Type, Debug)]
@@ -637,7 +637,12 @@ async fn initialize(app: AppHandle) {
 
                             app.state::<ServerState>().set_child(Some(child));
 
-                            Ok(ServerReadyData { url, username,password, is_sidecar: true })
+                            Ok(ServerReadyData {
+                                url,
+                                username,
+                                password,
+                                is_sidecar: true,
+                            })
                         }
                         .map(move |res| {
                             let _ = server_ready_tx.send(res);

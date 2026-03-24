@@ -17,6 +17,7 @@ import { Shell } from "@/shell/shell"
 import { BashArity } from "@/permission/arity"
 import { Truncate } from "./truncation"
 import { Plugin } from "@/plugin"
+import { stripNoProxy } from "@/util/proxied"
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = Flag.OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS || 2 * 60 * 1000
@@ -172,10 +173,10 @@ export const BashTool = Tool.define("bash", async () => {
       const proc = spawn(params.command, {
         shell,
         cwd,
-        env: {
+        env: stripNoProxy({
           ...process.env,
           ...shellEnv.env,
-        },
+        }),
         stdio: ["ignore", "pipe", "pipe"],
         detached: process.platform !== "win32",
       })

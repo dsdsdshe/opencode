@@ -38,6 +38,7 @@ import { NamedError } from "@opencode-ai/util/error"
 import { fn } from "@/util/fn"
 import { SessionProcessor } from "./processor"
 import { TaskTool } from "@/tool/task"
+import { stripNoProxy } from "../util/proxied"
 import { Tool } from "@/tool/tool"
 import { PermissionNext } from "@/permission/next"
 import { SessionStatus } from "./status"
@@ -1627,11 +1628,11 @@ NOTE: At any point in time through this workflow you should feel free to ask the
       cwd,
       detached: process.platform !== "win32",
       stdio: ["ignore", "pipe", "pipe"],
-      env: {
+      env: stripNoProxy({
         ...process.env,
         ...shellEnv.env,
         TERM: "dumb",
-      },
+      }),
     })
 
     let output = ""

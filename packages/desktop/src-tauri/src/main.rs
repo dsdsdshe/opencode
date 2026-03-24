@@ -4,7 +4,7 @@
 // borrowed from https://github.com/skyline69/balatro-mod-manager
 #[cfg(target_os = "linux")]
 fn configure_display_backend() -> Option<String> {
-    use opencode_lib::linux_windowing::{select_backend, Backend, SessionEnv};
+    use opencode_lib::linux_windowing::{Backend, SessionEnv, select_backend};
     use std::env;
 
     let set_env_if_absent = |key: &str, value: &str| {
@@ -71,10 +71,39 @@ fn configure_intranet_profile() {
         unsafe { env::set_var(key, value) };
     };
 
+    let upsert = |key: &str, extra: &[String]| {
+        let mut items = env::var(key)
+            .unwrap_or_default()
+            .split(',')
+            .map(|v| v.trim())
+            .filter(|v| !v.is_empty())
+            .map(|v| v.to_string())
+            .collect::<Vec<_>>();
+
+        for value in extra {
+            if items.iter().any(|item| item.eq_ignore_ascii_case(value)) {
+                continue;
+            }
+            items.push(value.clone());
+        }
+
+        if items.is_empty() {
+            return;
+        }
+
+        // Safety: called during startup before any threads are spawned.
+        unsafe { env::set_var(key, items.join(",")) };
+    };
+
     let allowed_hosts = fs::read_to_string(&config)
         .ok()
         .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
-        .and_then(|json| json.get("security")?.get("allowed_hosts")?.as_array().cloned())
+        .and_then(|json| {
+            json.get("security")?
+                .get("allowed_hosts")?
+                .as_array()
+                .cloned()
+        })
         .map(|hosts| {
             hosts
                 .into_iter()
@@ -83,12 +112,64 @@ fn configure_intranet_profile() {
         })
         .filter(|hosts| !hosts.is_empty());
 
+    let bypass = allowed_hosts.as_ref().map(|hosts| {
+        let mut items = vec![
+            "127.0.0.1".to_string(),
+            "localhost".to_string(),
+            "::1".to_string(),
+        ];
+
+        for value in hosts {
+            let input = value
+                .trim()
+                .trim_start_matches("http://")
+                .trim_start_matches("https://");
+            if input.is_empty() {
+                continue;
+            }
+
+            if input.starts_with('[') {
+                if let Some(end) = input.find(']') {
+                    let host = input[1..end].trim();
+                    if !host.is_empty() && !items.iter().any(|item| item.eq_ignore_ascii_case(host))
+                    {
+                        items.push(host.to_string());
+                    }
+                }
+                if !items.iter().any(|item| item.eq_ignore_ascii_case(input)) {
+                    items.push(input.to_string());
+                }
+                continue;
+            }
+
+            if input.matches(':').count() == 1 {
+                if let Some((host, _)) = input.split_once(':') {
+                    let host = host.trim();
+                    if !host.is_empty() && !items.iter().any(|item| item.eq_ignore_ascii_case(host))
+                    {
+                        items.push(host.to_string());
+                    }
+                }
+            }
+
+            if !items.iter().any(|item| item.eq_ignore_ascii_case(input)) {
+                items.push(input.to_string());
+            }
+        }
+
+        items
+    });
+
     set("OPENCODE_CONFIG", config.to_string_lossy().to_string());
     set("OPENCODE_CONFIG_DIR", base.to_string_lossy().to_string());
     set("OPENCODE_DISABLE_PROJECT_CONFIG", "1".to_string());
     set("OPENCODE_SAFE_MODE", "1".to_string());
     if let Some(hosts) = allowed_hosts {
         set("OPENCODE_ALLOWED_HOSTS", hosts.join(","));
+    }
+    if let Some(hosts) = bypass {
+        upsert("NO_PROXY", &hosts);
+        upsert("no_proxy", &hosts);
     }
     set("OPENCODE_DISABLE_MODELS_FETCH", "1".to_string());
     set("OPENCODE_DISABLE_DYNAMIC_INSTALLS", "1".to_string());
