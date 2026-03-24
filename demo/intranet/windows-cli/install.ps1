@@ -198,16 +198,6 @@ set "ALL_PROXY="
 set "http_proxy="
 set "https_proxy="
 set "all_proxy="
-if defined NO_PROXY (
-  set "NO_PROXY=%NO_PROXY%,127.0.0.1,localhost,::1,uv.tool.huawei.com,mirrors.tools.huawei.com,__OPENCODE_INTRANET_HOST__,__OPENCODE_INTRANET_HOST__:4000"
-) else (
-  set "NO_PROXY=127.0.0.1,localhost,::1,uv.tool.huawei.com,mirrors.tools.huawei.com,__OPENCODE_INTRANET_HOST__,__OPENCODE_INTRANET_HOST__:4000"
-)
-if defined no_proxy (
-  set "no_proxy=%no_proxy%,127.0.0.1,localhost,::1,uv.tool.huawei.com,mirrors.tools.huawei.com,__OPENCODE_INTRANET_HOST__,__OPENCODE_INTRANET_HOST__:4000"
-) else (
-  set "no_proxy=127.0.0.1,localhost,::1,uv.tool.huawei.com,mirrors.tools.huawei.com,__OPENCODE_INTRANET_HOST__,__OPENCODE_INTRANET_HOST__:4000"
-)
 
 set "RUNTIME=%BASE%\runtime"
 set "XDG_CONFIG_HOME=%RUNTIME%\xdg-config"

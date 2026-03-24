@@ -206,8 +206,6 @@ export OPENCODE_DISABLE_AUTOUPDATE=1
 export OPENCODE_DISABLE_DEFAULT_PLUGINS=1
 export OPENCODE_DISABLE_PROXY=1
 unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
-export NO_PROXY="${NO_PROXY:+$NO_PROXY,}127.0.0.1,localhost,::1,uv.tool.huawei.com,mirrors.tools.huawei.com,__OPENCODE_INTRANET_HOST__,__OPENCODE_INTRANET_HOST__:4000"
-export no_proxy="${no_proxy:+$no_proxy,}127.0.0.1,localhost,::1,uv.tool.huawei.com,mirrors.tools.huawei.com,__OPENCODE_INTRANET_HOST__,__OPENCODE_INTRANET_HOST__:4000"
 
 # Isolate OpenCode runtime state from user/global config to prevent accidental policy bypasses.
 export XDG_CONFIG_HOME="$RUNTIME_BASE/xdg-config"

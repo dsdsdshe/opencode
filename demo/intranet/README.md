@@ -8,7 +8,6 @@ This package is for a simple demo deployment:
 - Fixed model: `hiq-llm`
 - Safe mode and outbound host allowlist enabled
 - Installers prompt for the intranet server IP and API key once and persist them into the demo config
-- Proxy bypass for the configured server is set automatically (no manual `no_proxy` required)
 - Proxy usage is disabled by default (`OPENCODE_DISABLE_PROXY=1`) for direct-only intranet access
 - Windows installer does not write persistent environment variables; policy is applied only in the app process
 
