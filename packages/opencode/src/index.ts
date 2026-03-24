@@ -33,9 +33,9 @@ import path from "path"
 import { Global } from "./global"
 import { JsonMigration } from "./storage/json-migration"
 import { Database } from "./storage/db"
-import { configureProxyBypass } from "./util/proxied"
+import { configureProxy } from "./util/proxied"
 
-configureProxyBypass()
+configureProxy()
 
 process.on("unhandledRejection", (e) => {
   Log.Default.error("rejection", {
