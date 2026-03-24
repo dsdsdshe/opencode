@@ -139,6 +139,7 @@ fn main() {
         "localhost".to_string(),
         "::1".to_string(),
         "uv.tool.huawei.com".to_string(),
+        "mirrors.tools.huawei.com".to_string(),
     ];
 
     bypass.extend(
